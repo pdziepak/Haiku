@@ -500,6 +500,10 @@ dump_feature_string(int currentCPU, cpu_ent* cpu)
 		strlcat(features, "aperfmperf ", sizeof(features));
 	if (cpu->arch.feature[FEATURE_6_ECX] & IA32_FEATURE_EPB)
 		strlcat(features, "epb ", sizeof(features));
+	if (cpu->arch.feature[FEATURE_7_EBX] & IA32_FEATURE_HLE)
+		strlcat(features, "hle ", sizeof(features));
+	if (cpu->arch.feature[FEATURE_7_EBX] & IA32_FEATURE_RTM)
+		strlcat(features, "rtm ", sizeof(features));
 
 	dprintf("CPU %d: features: %s\n", currentCPU, features);
 }
@@ -619,6 +623,11 @@ detect_cpu(int currentCPU)
 		get_current_cpuid(&cpuid, 6);
 		cpu->arch.feature[FEATURE_6_EAX] = cpuid.regs.eax;
 		cpu->arch.feature[FEATURE_6_ECX] = cpuid.regs.ecx;
+	}
+
+	if (maxBasicLeaf >= 7) {
+		get_current_cpuid(&cpuid, 7);
+		cpu->arch.feature[FEATURE_7_EBX] = cpuid.regs.ebx;
 	}
 
 #if DUMP_FEATURE_STRING

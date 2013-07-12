@@ -157,6 +157,10 @@
 #define IA32_FEATURE_APERFMPERF	(1 << 0) //IA32_APERF, IA32_MPERF
 #define IA32_FEATURE_EPB	(1 << 3) //IA32_ENERGY_PERF_BIAS
 
+// x86 defined features from cpuid eax 7, ebx register
+#define IA32_FEATURE_HLE	(1 << 4) // Hardware Lock Elision
+#define IA32_FEATURE_RTM	(1 << 11) // Restricted Transactional Memory
+
 // cr4 flags
 #define IA32_CR4_PAE					(1UL << 5)
 #define IA32_CR4_GLOBAL_PAGES			(1UL << 7)
@@ -241,6 +245,7 @@ enum x86_feature_type {
 	FEATURE_EXT_AMD,        // cpuid eax=0x80000001, edx register (AMD)
 	FEATURE_6_EAX,          // cpuid eax=6, eax registers
 	FEATURE_6_ECX,          // cpuid eax=6, ecx registers
+	FEATURE_7_EBX,			// cpuid eax=7, ebx registers
 
 	FEATURE_NUM
 };
