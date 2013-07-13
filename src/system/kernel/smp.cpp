@@ -19,6 +19,7 @@
 #include <arch/cpu.h>
 #include <arch/debug.h>
 #include <arch/int.h>
+#include <arch/lock_elision.h>
 #include <arch/smp.h>
 #include <boot/kernel_args.h>
 #include <cpu.h>
@@ -307,8 +308,10 @@ try_acquire_spinlock(spinlock* lock)
 	if (atomic_add(&lock->lock, 1) != 0)
 		return false;
 #else
-	if (atomic_or((int32*)lock, 1) != 0)
+	if (lock_elision_set(lock) != 0) {
+		lock_elision_abort();
 		return false;
+	}
 
 #	if DEBUG_SPINLOCKS
 	push_lock_caller(arch_debug_get_caller(), lock);
@@ -336,6 +339,10 @@ acquire_spinlock(spinlock* lock)
 			process_all_pending_ici(currentCPU);
 #else
 		while (1) {
+			if (lock_elision_set(lock) == 0)
+				break;
+			lock_elision_abort();
+
 			uint32 count = 0;
 			while (*lock != 0) {
 				if (++count == SPINLOCK_DEADLOCK_COUNT) {
@@ -347,8 +354,6 @@ acquire_spinlock(spinlock* lock)
 				process_all_pending_ici(currentCPU);
 				PAUSE();
 			}
-			if (atomic_or((int32*)lock, 1) == 0)
-				break;
 		}
 
 #	if DEBUG_SPINLOCKS
@@ -390,6 +395,10 @@ acquire_spinlock_nocheck(spinlock *lock)
 		}
 #else
 		while (1) {
+			if (lock_elision_set(lock) == 0)
+				break;
+			lock_elision_abort();
+
 			uint32 count = 0;
 			while (*lock != 0) {
 				if (++count == SPINLOCK_DEADLOCK_COUNT_NO_CHECK) {
@@ -400,9 +409,6 @@ acquire_spinlock_nocheck(spinlock *lock)
 
 				PAUSE();
 			}
-
-			if (atomic_or((int32*)lock, 1) == 0)
-				break;
 		}
 #endif
 	} else {
@@ -433,6 +439,10 @@ acquire_spinlock_cpu(int32 currentCPU, spinlock *lock)
 			process_all_pending_ici(currentCPU);
 #else
 		while (1) {
+			if (lock_elision_set(lock) == 0)
+				break;
+			lock_elision_abort();
+
 			uint32 count = 0;
 			while (*lock != 0) {
 				if (++count == SPINLOCK_DEADLOCK_COUNT) {
@@ -444,8 +454,6 @@ acquire_spinlock_cpu(int32 currentCPU, spinlock *lock)
 				process_all_pending_ici(currentCPU);
 				PAUSE();
 			}
-			if (atomic_or((int32*)lock, 1) == 0)
-				break;
 		}
 
 #	if DEBUG_SPINLOCKS
@@ -493,7 +501,7 @@ release_spinlock(spinlock *lock)
 			}
 		}
 #else
-		if (atomic_and((int32*)lock, 0) != 1)
+		if (lock_elision_clear(lock) != 1)
 			panic("release_spinlock: lock %p was already released\n", lock);
 #endif
 	} else {
