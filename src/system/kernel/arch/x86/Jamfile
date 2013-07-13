@@ -24,6 +24,7 @@ if $(TARGET_ARCH) = x86_64 {
 		cpuid.S
 		descriptors.cpp
 		interrupts.S
+		lock_elision.S
 		signals.cpp
 		signals_asm.S
 		syscalls.cpp
@@ -49,6 +50,7 @@ if $(TARGET_ARCH) = x86_64 {
 		cpuid.S
 		descriptors.cpp
 		interrupts.S
+		lock_elision.S
 		signals.cpp
 		signals_asm.S
 		syscalls.cpp

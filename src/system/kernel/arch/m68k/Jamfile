@@ -62,6 +62,7 @@ KernelMergeObject kernel_arch_m68k.o :
 	arch_vm_translation_map.cpp
 	arch_asm.S
 
+	generic_lock_elision.cpp
 	#generic_vm_physical_page_mapper.cpp
 	#generic_vm_physical_page_ops.cpp
 

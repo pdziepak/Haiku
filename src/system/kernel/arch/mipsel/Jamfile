@@ -26,6 +26,7 @@ KernelMergeObject kernel_arch_mipsel.o :
 	arch_vm.cpp
 	arch_vm_translation_map.cpp
 
+	generic_lock_elision.cpp
 	generic_vm_physical_page_mapper.cpp
 	generic_vm_physical_page_ops.cpp
 	:
