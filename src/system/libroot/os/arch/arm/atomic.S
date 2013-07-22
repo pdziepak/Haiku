@@ -126,6 +126,22 @@ miss4:		ldrex   r12, [r0]
 #endif
 FUNCTION_END(atomic_set)
 
+/* int atomic_set_aligned(int *value, int setTo)
+ */
+FUNCTION(atomic_set_aligned):
+#if __ARM_ARCH__ >= 6
+0:		ldrex   r12, [r0]
+       		strex   r3, r1, [r0]
+       		teq     r3, #0
+       		bne     0b
+	        bx  lr
+#else
+	mov	r3, r0
+	swp	r0, r1, [r3]
+        bx      lr
+#endif
+FUNCTION_END(atomic_set_aligned)
+
 /* int atomic_test_and_set(int *value, int setTo, int testValue) 
  */
 FUNCTION(atomic_test_and_set):
@@ -164,6 +180,12 @@ FUNCTION(atomic_get):
         bx	lr
 FUNCTION_END(atomic_get)
 
+/* int atomic_get_aligned(int *value) 
+ */
+FUNCTION(atomic_get_aligned):
+	ldr	r0, [r0]
+        bx	lr
+FUNCTION_END(atomic_get_aligned)
 
 /* int64	atomic_add64(vint64 *value, int64 addValue) */
 //FUNCTION(atomic_add64):

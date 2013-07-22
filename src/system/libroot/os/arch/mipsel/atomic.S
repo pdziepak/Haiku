@@ -44,3 +44,15 @@ lost5:		jr	$ra
  */
 FUNCTION(atomic_get):
 lost6:		jr	$ra
+
+/* int atomic_set_aligned(int *value, int setTo)
+ * (r3)           r3          r4
+ */
+FUNCTION(atomic_set_aligned):
+lost7:		jr	$ra
+
+/* int atomic_get_aligned(int *value)
+ * (r3)           r3
+ */
+FUNCTION(atomic_get_aligned):
+lost8:		jr	$ra

@@ -50,6 +50,16 @@ lost4:	lwarx	%r5, 0, %r3
 		mr		%r3, %r5
 		blr
 
+/* int atomic_set_aligned(int *value, int setTo)
+ * (r3)           r3          r4
+ */
+FUNCTION(atomic_set_aligned):
+0:		lwarx	%r5, 0, %r3
+		stwcx.	%r4, 0, %r3
+		bne-	0b
+		mr		%r3, %r5
+		blr
+
 /* int atomic_test_and_set(int *value, int setTo, int testValue)
  * (r3)                    r3          r4         r5
  */
@@ -69,5 +79,15 @@ FUNCTION(atomic_get):
 lost6:	lwarx	%r5, 0, %r3
 		stwcx.	%r5, 0, %r3
 		bne-	lost6
+		mr		%r3, %r5
+		blr
+
+/* int atomic_get_aligned(int *value)
+ * (r3)           r3
+ */
+FUNCTION(atomic_get_aligned):
+0:		lwarx	%r5, 0, %r3
+		stwcx.	%r5, 0, %r3
+		bne-	0b
 		mr		%r3, %r5
 		blr
