@@ -627,13 +627,34 @@
 //! @{
 
 
+/*!	\fn int32 atomic_get_and_set(vint32 *value, int32 newValue)
+	\brief Atomically set the variable \a value to \a newvalue and return the
+		old value.
+
+	This is a thread-safe way of performing the \c *value \c = \c newValue
+	operation. You should use these function when two or more threads might
+	access the variable simultaneously. You don't have to use a semaphore or a
+	mutex in this case. 
+
+	\return The original value of \c value.
+
+	\sa atomic_get_and_set64() for a version that works on \c long \c long.
+	\sa atomic_set()
+	\sa atomic_test_and_set()
+	\sa atomic_add()
+	\sa atomic_and()
+	\sa atomic_or(),
+	\sa atomic_get()
+*/
+
+
 /*!	\fn int32 atomic_set(vint32 *value, int32 newValue)
 	\brief Atomically set the variable \a value to \a newvalue.
 
 	This is a thread-safe way of performing the \c *value \c = \c newValue
 	operation. You should use these function when two or more threads might
 	access the variable simultaneously. You don't have to use a semaphore or a
-	mutex in this case. 
+	mutex in this case. The variable must be naturally aligned.
 
 	\return The original value of \c value.
 
@@ -659,6 +680,7 @@
 	\return The original value of \c value.
 
 	\sa atomic_test_and_set64() for a version that works on \c long \c long.
+	\sa atomic_get_and_set()
 	\sa atomic_set()
 	\sa atomic_add()
 	\sa atomic_and()
@@ -679,6 +701,7 @@
 	\return The original value of \c value.
 
 	\sa atomic_add64() for a version that works on \c long \c long.
+	\sa atomic_get_and_set()
 	\sa atomic_set()
 	\sa atomic_test_and_set()
 	\sa atomic_and()
@@ -699,6 +722,7 @@
 	\return The original value of \c value.
 
 	\sa atomic_and64() for a version that works on \c long \c long.
+	\sa atomic_get_and_set()
 	\sa atomic_set()
 	\sa atomic_test_and_set()
 	\sa atomic_add()
@@ -721,6 +745,7 @@
 	\return The original value of \c value.
 
 	\sa atomic_or64() for a version that works on \c long \c long.
+	\sa atomic_get_and_set()
 	\sa atomic_set()
 	\sa atomic_test_and_set()
 	\sa atomic_add()
@@ -736,16 +761,39 @@
 	This is a thread-safe way of reading the contents of the \c value
 	operation. You should use these function when two or more threads might
 	access the variable simultaneously. You don't have to use a semaphore or a
-	mutex in this case. 
+	mutex in this case. The variable must be naturally aligned.
 
 	\return The original value of \c value.
 
 	\sa atomic_get64() for a version that works on \c long \c long.
+	\sa atomic_get_and_set()
 	\sa atomic_set()
 	\sa atomic_test_and_set()
 	\sa atomic_add()
 	\sa atomic_and()
 	\sa atomic_or()
+*/
+
+
+/*!
+	\fn int64 atomic_get_and_set64(vint64 *value, int64 newValue)
+	\brief Atomically set the variable \a value to \a newvalue and return
+		the old value.
+
+	This is a thread-safe way of performing the \c *value \c = \c newValue
+	operation. You should use these function when two or more threads might
+	access the variable simultaneously. You don't have to use a semaphore or a
+	mutex in this case. 
+
+	\return The original value of \c value.
+
+	\sa atomic_get_and_set() for a version that works on an \c int32.
+	\sa atomic_set64()
+	\sa atomic_test_and_set64()
+	\sa atomic_add64()
+	\sa atomic_and64()
+	\sa atomic_or64()
+	\sa atomic_get64()
 */
 
 
@@ -756,11 +804,12 @@
 	This is a thread-safe way of performing the \c *value \c = \c newValue
 	operation. You should use these function when two or more threads might
 	access the variable simultaneously. You don't have to use a semaphore or a
-	mutex in this case. 
+	mutex in this case. The variable must be naturally aligned.
 
 	\return The original value of \c value.
 
 	\sa atomic_set() for a version that works on an \c int32.
+	\sa atomic_get_and_set64()
 	\sa atomic_test_and_set64()
 	\sa atomic_add64()
 	\sa atomic_and64()
@@ -783,6 +832,7 @@
 	\return The original value of \c value.
 
 	\sa atomic_test_and_set() for a version that works on an \c int32.
+	\sa atomic_get_and_set64()
 	\sa atomic_set64()
 	\sa atomic_add64()
 	\sa atomic_and64()
@@ -803,6 +853,7 @@
 	\return The original value of \c value.
 
 	\sa atomic_add() for a version that works on an \c int32.
+	\sa atomic_get_and_set64()
 	\sa atomic_set64()
 	\sa atomic_test_and_set64()
 	\sa atomic_and64()
@@ -824,6 +875,7 @@
 	\return The original value of \c value.
 
 	\sa atomic_and() for a version that works on an \c int32.
+	\sa atomic_get_and_set64()
 	\sa atomic_set64()
 	\sa atomic_test_and_set64()
 	\sa atomic_add64()
@@ -844,6 +896,7 @@
 	\return The original value of \c value.
 
 	\sa atomic_or() for a version that works on an \c int32.
+	\sa atomic_get_and_set64()
 	\sa atomic_set64()
 	\sa atomic_test_and_set64()
 	\sa atomic_add64()
@@ -859,11 +912,12 @@
 	This is a thread-safe way of reading the contents of the \c value
 	operation. You should use these function when two or more threads might
 	access the variable simultaneously. You don't have to use a semaphore or a
-	mutex in this case. 
+	mutex in this case. The variable must be naturally aligned.
 
 	\return The original value of \c value.
 
 	\sa atomic_get() for a version that works on an \c int32.
+	\sa atomic_get_and_set64()
 	\sa atomic_set64()
 	\sa atomic_test_and_set64()
 	\sa atomic_add64()
