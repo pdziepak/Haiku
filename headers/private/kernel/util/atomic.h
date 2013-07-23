@@ -28,13 +28,24 @@ atomic_pointer_test_and_set(PointerType** _pointer, const PointerType* set,
 
 
 template<typename PointerType> PointerType*
+atomic_pointer_get_and_set(PointerType** _pointer, const PointerType* set)
+{
+#if LONG_MAX == INT_MAX
+	return (PointerType*)atomic_get_and_set((vint32*)_pointer, (int32)set);
+#else
+	return (PointerType*)atomic_get_and_set64((vint64*)_pointer, (int64)set);
+#endif
+}
+
+
+template<typename PointerType> void
 atomic_pointer_set(PointerType** _pointer, const PointerType* set)
 {
 	ASSERT((_pointer & sizeof(PointerType*) - 1) == 0);
 #if LONG_MAX == INT_MAX
-	return (PointerType*)atomic_set((vint32*)_pointer, (int32)set);
+	atomic_set((vint32*)_pointer, (int32)set);
 #else
-	return (PointerType*)atomic_set64((vint64*)_pointer, (int64)set);
+	atomic_set64((vint64*)_pointer, (int64)set);
 #endif
 }
 
@@ -44,9 +55,9 @@ atomic_pointer_get(PointerType** _pointer)
 {
 	ASSERT((_pointer & sizeof(PointerType*) - 1) == 0);
 #if LONG_MAX == INT_MAX
-	return (PointerType*)atomic_get_aligned((vint32*)_pointer);
+	return (PointerType*)atomic_get((vint32*)_pointer);
 #else
-	return (PointerType*)atomic_get64_aligned((vint64*)_pointer);
+	return (PointerType*)atomic_get64((vint64*)_pointer);
 #endif
 }
 

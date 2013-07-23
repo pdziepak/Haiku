@@ -7,11 +7,18 @@
 
 
 int32
-atomic_set(vint32 *value, int32 newValue)
+atomic_get_and_set(vint32 *value, int32 newValue)
 {
 	int32 oldValue = *value;
 	*value = newValue;
 	return oldValue;
+}
+
+
+void
+atomic_set(vint32 *value, int32 newValue)
+{
+	*value = newValue;
 }
 
 
@@ -60,11 +67,18 @@ atomic_get(vint32 *value)
 
 
 int64
-atomic_set64(vint64 *value, int64 newValue)
+atomic_get_and_set64(vint64 *value, int64 newValue)
 {
 	int64 oldValue = *value;
 	*value = newValue;
 	return oldValue;
+}
+
+
+void
+atomic_set64(vint64 *value, int64 newValue)
+{
+	*value = newValue;
 }
 
 int64

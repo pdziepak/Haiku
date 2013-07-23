@@ -69,17 +69,6 @@ miss4:	cas.l	%d0,%d1,(%a0)
 		rts
 FUNCTION_END(atomic_set)
 
-/* int atomic_set_aligned(int *value, int setTo)
- */
-FUNCTION(atomic_set_aligned):
-		move.l	(4,%a7),%a0
-		move.l	(%a0),%d0
-		move.l	(8,%a7),%d1
-miss4:	cas.l	%d0,%d1,(%a0)
-		bne		miss4
-		rts
-FUNCTION_END(atomic_set_aligned)
-
 /* int atomic_test_and_set(int *value, int setTo, int testValue) 
  */
 FUNCTION(atomic_test_and_set):
@@ -102,17 +91,17 @@ FUNCTION(atomic_get):
 		rts
 FUNCTION_END(atomic_get)
 
-/* int atomic_get_aligned(int *value) 
+/* int atomic_xchg(int *value, int setTo)
  */
-FUNCTION(atomic_get_aligned):
+FUNCTION(atomic_xchg):
 		move.l	(4,%a7),%a0
 		move.l	(%a0),%d0
-		move.l	%d0,%d1
-		cas.l	%d0,%d1,(%a0)
-		// we must use cas... so we change to the same value if matching,
-		// else we get the correct one anyway
+		move.l	(8,%a7),%d1
+miss4:	cas.l	%d0,%d1,(%a0)
+		bne		miss4
 		rts
-FUNCTION_END(atomic_get_aligned)
+FUNCTION_END(atomic_xchg)
+
 
 /* m68k elf convention is to return structs in (a0)
  * but use d0/d1 for int64 and small structs.
@@ -199,24 +188,6 @@ miss8:	cas2.l	%d0:%d1,%d2:%d3,(%a2):(%a1)
 		rts
 FUNCTION_END(atomic_set64)
 
-/* int64	atomic_set64_aligned(vint64 *value, int64 newValue) */
-FUNCTION(atomic_set64_aligned):
-		movem.l	%d2-%d3/%a2,-(%a7)
-		move.l	(4,%a7),%a2
-		lea.l	(4,%a2),%a1
-		// new value
-		move.l	(12,%a7),%d3	/*LSB*/
-		move.l	(8,%a7),%d2		/*MSB*/
-		// old value
-		move.l	(%a1),%d1		/*LSB*/
-		move.l	(%a2),%d0		/*MSB*/
-miss8:	cas2.l	%d0:%d1,%d2:%d3,(%a2):(%a1)
-		bne		miss8
-		// return value d0:d1
-		movem.l	(%a7)+,%d2-%d3/%a2
-		rts
-FUNCTION_END(atomic_set64_aligned)
-
 /* int64	atomic_test_and_set64(vint64 *value, int64 newValue, int64 testAgainst) */
 FUNCTION(atomic_test_and_set64):
 		movem.l	%d2-%d3/%a2,-(%a7)
@@ -251,19 +222,21 @@ FUNCTION(atomic_get64):
 		rts
 FUNCTION_END(atomic_get64)
 
-/* int64	atomic_get64_aligned(vint64 *value) */
-FUNCTION(atomic_get64_aligned):
+/* int64	atomic_xchg64(vint64 *value, int64 newValue) */
+FUNCTION(atomic_xchg64):
 		movem.l	%d2-%d3/%a2,-(%a7)
 		move.l	(4,%a7),%a2
 		lea.l	(4,%a2),%a1
-		move.l	(%a1),%d1	/*LSB*/
+		// new value
+		move.l	(12,%a7),%d3	/*LSB*/
+		move.l	(8,%a7),%d2		/*MSB*/
+		// old value
+		move.l	(%a1),%d1		/*LSB*/
 		move.l	(%a2),%d0		/*MSB*/
-		move.l	%d1,%d3
-		move.l	%d0,%d2
-		// we must use cas... so we change to the same value if matching,
-		// else we get the correct one anyway
-		cas2.l	%d0:%d1,%d2:%d3,(%a2):(%a1)
-		// return value
+miss8:	cas2.l	%d0:%d1,%d2:%d3,(%a2):(%a1)
+		bne		miss8
+		// return value d0:d1
 		movem.l	(%a7)+,%d2-%d3/%a2
 		rts
-FUNCTION_END(atomic_get64_aligned)
+FUNCTION_END(atomic_xchg64)
+

@@ -9,20 +9,20 @@
 
 .text
 
-/* int32 atomic_set(vint32 *value, int32 newValue) */
-FUNCTION(atomic_set):
+/* int32 atomic_get_and_set(vint32 *value, int32 newValue) */
+FUNCTION(atomic_get_and_set):
 	movl		%esi, %eax
 	lock
 	xchgl		%eax, (%rdi)
 	ret
-FUNCTION_END(atomic_set)
+FUNCTION_END(atomic_get_and_set)
 
-/* void atomic_set_aligned(vint64 *value, int64 newValue) */
-FUNCTION(atomic_set_aligned):
+/* void atomic_set(vint32 *value, int32 newValue) */
+FUNCTION(atomic_set):
 	sfence
 	movl		%esi, (%rdi)
 	ret
-FUNCTION_END(atomic_set_aligned)
+FUNCTION_END(atomic_set)
 
 /* int32 atomic_test_and_set(vint32 *value, int32 newValue, int32 testAgainst) */
 FUNCTION(atomic_test_and_set):
@@ -69,33 +69,24 @@ FUNCTION_END(atomic_or)
 /* int32 atomic_get(vint32 *value) */
 FUNCTION(atomic_get):
 	movl		(%rdi), %eax
-1:	lock
-	cmpxchgl	%eax, (%rdi)
-	jnz			1b
+	lfence
 	ret
 FUNCTION_END(atomic_get)
 
-/* int32	atomic_get_aligned(vint32* value) */
-FUNCTION(atomic_get_aligned):
-	movl		(%rdi), %eax
-	lfence
-	ret
-FUNCTION_END(atomic_get_aligned)
-
-/* int64 atomic_set64(vint64 *value, int64 newValue) */
-FUNCTION(atomic_set64):
+/* int64 atomic_get_and_set64(vint64 *value, int64 newValue) */
+FUNCTION(atomic_get_and_set64):
 	movq		%rsi, %rax
 	lock
 	xchgq		%rax, (%rdi)
 	ret
-FUNCTION_END(atomic_set64)
+FUNCTION_END(atomic_get_and_set64)
 
-/* void atomic_set64_aligned(vint64 *value, int64 newValue) */
-FUNCTION(atomic_set64_aligned):
+/* void atomic_set64(vint64 *value, int64 newValue) */
+FUNCTION(atomic_set64):
 	sfence
 	movq		%rsi, (%rdi)
 	ret
-FUNCTION_END(atomic_set64_aligned)
+FUNCTION_END(atomic_set64)
 
 /* int64 atomic_test_and_set64(vint64 *value, int64 newValue, int64 testAgainst) */
 FUNCTION(atomic_test_and_set64):
@@ -142,16 +133,7 @@ FUNCTION_END(atomic_or64)
 /* int64 atomic_get64(vint64 *value) */
 FUNCTION(atomic_get64):
 	movq		(%rdi), %rax
-1:	lock
-	cmpxchgq	%rax, (%rdi)
-	jnz			1b
-	ret
-FUNCTION_END(atomic_get64)
-
-/* int32	atomic_get64_aligned(vint32* value) */
-FUNCTION(atomic_get64_aligned):
-	movq		(%rdi), %rax
 	lfence
 	ret
-FUNCTION_END(atomic_get64_aligned)
+FUNCTION_END(atomic_get64)
 

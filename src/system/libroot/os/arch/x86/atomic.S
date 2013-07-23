@@ -11,24 +11,24 @@
 
 .text
 
-/* int32	atomic_set(vint32 *value, int32 newValue) */
-FUNCTION(atomic_set):
+/* int32	atomic_get_and_set(vint32 *value, int32 newValue) */
+FUNCTION(atomic_get_and_set):
 	movl		4(%esp),%edx
 	movl		8(%esp),%eax
 	lock
 	xchg		%eax,(%edx)
 	ret
-FUNCTION_END(atomic_set)
+FUNCTION_END(atomic_get_and_set)
 
-/* void		atomic_set_aligned(vint32 *value, int32 newValue) */
-FUNCTION(atomic_set_aligned):
+/* void		atomic_set(vint32 *value, int32 newValue) */
+FUNCTION(atomic_set):
 	movl		4(%esp),%edx
 	movl		8(%esp),%eax
 	lock
 	addl		$0, (%esp)
 	movl		%eax, (%edx)
 	ret
-FUNCTION_END(atomic_set_aligned)
+FUNCTION_END(atomic_set)
 
 /* int32	atomic_test_and_set(vint32 *value, int32 newValue, int32 testAgainst) */
 FUNCTION(atomic_test_and_set):
@@ -78,26 +78,14 @@ FUNCTION_END(atomic_or)
 /* int32	atomic_get(vint32 *value) */
 FUNCTION(atomic_get):
 	movl		4(%esp), %edx
-_atomic_get1:
-	movl		(%edx), %eax
-	movl		%eax, %ecx
-	lock
-	cmpxchgl	%ecx, (%edx)
-	jnz			_atomic_get1
-	ret
-FUNCTION_END(atomic_get)
-
-/* int32	atomic_get_aligned(vint32* value) */
-FUNCTION(atomic_get_aligned):
-	movl		4(%esp), %edx
 	movl		(%edx), %eax
 	lock
 	addl		$0, (%esp)
 	ret
-FUNCTION_END(atomic_get_aligned)
+FUNCTION_END(atomic_get)
 
-/* int64	atomic_set64(vint64 *value, int64 newValue) */
-FUNCTION(atomic_set64):
+/* int64	atomic_get_and_set64(vint64 *value, int64 newValue) */
+FUNCTION(atomic_get_and_set64):
 	push		%esi
 	push		%ebx
 	movl		12(%esp), %esi	/* value */
@@ -112,10 +100,10 @@ _atomic_set64_1:
 	pop			%ebx
 	pop			%esi
 	ret
-FUNCTION_END(atomic_set64)
+FUNCTION_END(atomic_get_and_set64)
 
-/* void	atomic_set64_aligned(vint64 *value, int64 newValue) */
-FUNCTION(atomic_set64_aligned):
+/* void	atomic_set64(vint64 *value, int64 newValue) */
+FUNCTION(atomic_set64):
 	push		%esi
 	push		%ebx
 	movl		12(%esp), %esi	/* value */
@@ -130,7 +118,7 @@ FUNCTION(atomic_set64_aligned):
 	pop			%ebx
 	pop			%esi
 	ret
-FUNCTION_END(atomic_set64_aligned)
+FUNCTION_END(atomic_set64)
 
 /* int64	atomic_test_and_set64(vint64 *value, int64 newValue, int64 testAgainst) */
 FUNCTION(atomic_test_and_set64):
@@ -225,22 +213,4 @@ _atomic_get64_1:
 	pop			%esi
 	ret
 FUNCTION_END(atomic_get64)
-
-/* int64	atomic_get64_aligned(vint64 *value) */
-FUNCTION(atomic_get64_aligned):
-	push		%esi
-	push		%ebx
-	movl		12(%esp), %esi
-1:
-	movl		(%esi), %eax
-	movl		4(%esi), %edx
-	movl		%eax, %ebx
-	movl		%edx, %ecx
-	lock
-	cmpxchg8b	(%esi)
-	jnz			1b
-	pop			%ebx
-	pop			%esi
-	ret
-FUNCTION_END(atomic_get64_aligned)
 
