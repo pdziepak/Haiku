@@ -601,7 +601,7 @@ smp_init(void)
 #endif
 
 	cpuid_info info;
-	if (get_current_cpuid(&info, 1) != B_OK)
+	if (get_current_cpuid(&info, 1, 0) != B_OK)
 		return;
 
 	if ((info.eax_1.features & IA32_FEATURE_APIC) == 0) {

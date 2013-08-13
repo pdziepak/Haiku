@@ -241,7 +241,7 @@ enum x86_feature_type {
 	FEATURE_EXT_AMD,        // cpuid eax=0x80000001, edx register (AMD)
 	FEATURE_6_EAX,          // cpuid eax=6, eax registers
 	FEATURE_6_ECX,          // cpuid eax=6, ecx registers
-	FEATURE_7_EBX,			// cpuid eax=7, ebx registers
+	FEATURE_7_0_EBX,		// cpuid eax=7 ecx=0, ebx register
 
 	FEATURE_NUM
 };

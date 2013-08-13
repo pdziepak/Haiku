@@ -500,9 +500,9 @@ dump_feature_string(int currentCPU, cpu_ent* cpu)
 		strlcat(features, "aperfmperf ", sizeof(features));
 	if (cpu->arch.feature[FEATURE_6_ECX] & IA32_FEATURE_EPB)
 		strlcat(features, "epb ", sizeof(features));
-	if (cpu->arch.feature[FEATURE_7_EBX] & IA32_FEATURE_HLE)
+	if (cpu->arch.feature[FEATURE_7_0_EBX] & IA32_FEATURE_HLE)
 		strlcat(features, "hle ", sizeof(features));
-	if (cpu->arch.feature[FEATURE_7_EBX] & IA32_FEATURE_RTM)
+	if (cpu->arch.feature[FEATURE_7_0_EBX] & IA32_FEATURE_RTM)
 		strlcat(features, "rtm ", sizeof(features));
 
 	dprintf("CPU %d: features: %s\n", currentCPU, features);
@@ -526,7 +526,7 @@ detect_cpu(int currentCPU)
 	cpu->arch.model_name[0] = 0;
 
 	// print some fun data
-	get_current_cpuid(&cpuid, 0);
+	get_current_cpuid(&cpuid, 0, 0);
 	uint32 maxBasicLeaf = cpuid.eax_0.max_eax;	
 
 	// build the vendor string
@@ -534,7 +534,7 @@ detect_cpu(int currentCPU)
 	memcpy(vendorString, cpuid.eax_0.vendor_id, sizeof(cpuid.eax_0.vendor_id));
 
 	// get the family, model, stepping
-	get_current_cpuid(&cpuid, 1);
+	get_current_cpuid(&cpuid, 1, 0);
 	cpu->arch.type = cpuid.eax_1.type;
 	cpu->arch.family = cpuid.eax_1.family;
 	cpu->arch.extended_family = cpuid.eax_1.extended_family;
@@ -565,27 +565,27 @@ detect_cpu(int currentCPU)
 	}
 
 	// see if we can get the model name
-	get_current_cpuid(&cpuid, 0x80000000);
+	get_current_cpuid(&cpuid, 0x80000000, 0);
 	uint32 maxExtendedLeaf = cpuid.eax_0.max_eax;
 	if (maxExtendedLeaf >= 0x80000004) {
 		// build the model string (need to swap ecx/edx data before copying)
 		unsigned int temp;
 		memset(cpu->arch.model_name, 0, sizeof(cpu->arch.model_name));
 
-		get_current_cpuid(&cpuid, 0x80000002);
+		get_current_cpuid(&cpuid, 0x80000002, 0);
 		temp = cpuid.regs.edx;
 		cpuid.regs.edx = cpuid.regs.ecx;
 		cpuid.regs.ecx = temp;
 		memcpy(cpu->arch.model_name, cpuid.as_chars, sizeof(cpuid.as_chars));
 
-		get_current_cpuid(&cpuid, 0x80000003);
+		get_current_cpuid(&cpuid, 0x80000003, 0);
 		temp = cpuid.regs.edx;
 		cpuid.regs.edx = cpuid.regs.ecx;
 		cpuid.regs.ecx = temp;
 		memcpy(cpu->arch.model_name + 16, cpuid.as_chars,
 			sizeof(cpuid.as_chars));
 
-		get_current_cpuid(&cpuid, 0x80000004);
+		get_current_cpuid(&cpuid, 0x80000004, 0);
 		temp = cpuid.regs.edx;
 		cpuid.regs.edx = cpuid.regs.ecx;
 		cpuid.regs.ecx = temp;
@@ -608,26 +608,30 @@ detect_cpu(int currentCPU)
 	}
 
 	// load feature bits
-	get_current_cpuid(&cpuid, 1);
+	get_current_cpuid(&cpuid, 1, 0);
 	cpu->arch.feature[FEATURE_COMMON] = cpuid.eax_1.features; // edx
 	cpu->arch.feature[FEATURE_EXT] = cpuid.eax_1.extended_features; // ecx
 
 	if (maxExtendedLeaf >= 0x80000001) {
-		get_current_cpuid(&cpuid, 0x80000001);
+		get_current_cpuid(&cpuid, 0x80000001, 0);
 		cpu->arch.feature[FEATURE_EXT_AMD] = cpuid.regs.edx; // edx
 		if (cpu->arch.vendor != VENDOR_AMD)
 			cpu->arch.feature[FEATURE_EXT_AMD] &= IA32_FEATURES_INTEL_EXT;
 	}
 
 	if (maxBasicLeaf >= 6) {
-		get_current_cpuid(&cpuid, 6);
+		get_current_cpuid(&cpuid, 6, 0);
 		cpu->arch.feature[FEATURE_6_EAX] = cpuid.regs.eax;
 		cpu->arch.feature[FEATURE_6_ECX] = cpuid.regs.ecx;
 	}
 
 	if (maxBasicLeaf >= 7) {
-		get_current_cpuid(&cpuid, 7);
-		cpu->arch.feature[FEATURE_7_EBX] = cpuid.regs.ebx;
+		get_current_cpuid(&cpuid, 7, 0);
+
+		// EAX contains maximum ECX input value (i.e. sub-leaf number).
+		// Currently (August 2013) only sub-leaf 0 is present.
+
+		cpu->arch.feature[FEATURE_7_0_EBX] = cpuid.regs.ebx;
 	}
 
 #if DUMP_FEATURE_STRING
