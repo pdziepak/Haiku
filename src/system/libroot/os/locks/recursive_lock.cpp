@@ -13,8 +13,17 @@
 
 #include <OS.h>
 
+#include <transactional_memory.h>
 
 // #pragma mark - recursive lock
+
+
+struct CheckUnlocked {
+	bool operator()(recursive_lock* lock) const
+	{
+		return lock->holder == -1;
+	}
+};
 
 
 int32
@@ -56,6 +65,11 @@ recursive_lock_destroy(recursive_lock *lock)
 status_t
 recursive_lock_lock(recursive_lock *lock)
 {
+	// try lock elision first
+	status_t error = transaction_lock(lock, CheckUnlocked());
+	if (error == B_OK)
+		return B_OK;
+
 	thread_id thread = find_thread(NULL);
 
 	if (thread != lock->holder) {
@@ -71,6 +85,9 @@ recursive_lock_lock(recursive_lock *lock)
 void
 recursive_lock_unlock(recursive_lock *lock)
 {
+	if (transaction_unlock() == B_OK)
+		return;
+
 	if (find_thread(NULL) != lock->holder) {
 		debugger("recursive_lock unlocked by non-holder thread!\n");
 		return;

@@ -9,6 +9,7 @@
 #include <OS.h>
 
 #include <syscalls.h>
+#include <transactional_memory.h>
 #include <user_thread.h>
 
 
@@ -17,6 +18,20 @@ typedef struct rw_lock_waiter {
 	thread_id			thread;
 	bool				writer;
 } rw_lock_waiter;
+
+struct CheckWriteUnlocked {
+	bool operator()(rw_lock* lock) const
+	{
+		return lock->reader_count == 0 && lock->writer_count == 0;
+	}
+};
+
+struct CheckReadUnlocked {
+	bool operator()(rw_lock* lock) const
+	{
+		return lock->writer_count == 0;
+	}
+};
 
 
 static status_t
@@ -116,6 +131,11 @@ rw_lock_destroy(rw_lock *lock)
 status_t
 rw_lock_read_lock(rw_lock *lock)
 {
+	// try lock elision first
+	status_t error = transaction_lock(lock, CheckReadUnlocked());
+	if (error == B_OK)
+		return B_OK;
+
 	MutexLocker locker(lock->lock);
 
 	if (lock->writer_count == 0) {
@@ -135,6 +155,9 @@ rw_lock_read_lock(rw_lock *lock)
 status_t
 rw_lock_read_unlock(rw_lock *lock)
 {
+	if (transaction_unlock() == B_OK)
+		return B_OK;
+
 	MutexLocker locker(lock->lock);
 
 	if (lock->holder == find_thread(NULL)) {
@@ -163,6 +186,11 @@ rw_lock_read_unlock(rw_lock *lock)
 status_t
 rw_lock_write_lock(rw_lock *lock)
 {
+	// try lock elision first
+	status_t error = transaction_lock(lock, CheckWriteUnlocked());
+	if (error == B_OK)
+		return B_OK;
+
 	MutexLocker locker(lock->lock);
 
 	if (lock->reader_count == 0 && lock->writer_count == 0) {
@@ -196,6 +224,9 @@ rw_lock_write_lock(rw_lock *lock)
 status_t
 rw_lock_write_unlock(rw_lock *lock)
 {
+	if (transaction_unlock() == B_OK)
+		return B_OK;
+
 	MutexLocker locker(lock->lock);
 
 	if (lock->holder != find_thread(NULL)) {

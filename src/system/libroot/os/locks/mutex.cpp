@@ -15,10 +15,29 @@
 #include <string.h>
 
 #include <syscalls.h>
+#include <transactional_memory.h>
 #include <user_mutex_defs.h>
 
 
 // #pragma mark - mutex
+
+
+static inline bool
+can_acquire_lock(int32 value)
+{
+	// No one has the lock or is waiting for it, or the mutex has been
+	// disabled.
+	return (value & (B_USER_MUTEX_LOCKED | B_USER_MUTEX_WAITING)) == 0
+			|| (value & B_USER_MUTEX_DISABLED) != 0;
+}
+
+
+struct CheckUnlocked {
+	bool operator()(mutex* lock) const
+	{
+		return can_acquire_lock(lock->lock);
+	}
+};
 
 
 void
@@ -48,20 +67,20 @@ mutex_destroy(mutex *lock)
 
 
 status_t
-mutex_lock(mutex *lock)
+mutex_lock(mutex* lock)
 {
+	// try lock elision first
+	status_t error = transaction_lock(lock, CheckUnlocked());
+	if (error == B_OK)
+		return B_OK;
+
 	// set the locked flag
 	int32 oldValue = atomic_or(&lock->lock, B_USER_MUTEX_LOCKED);
 
-	if ((oldValue & (B_USER_MUTEX_LOCKED | B_USER_MUTEX_WAITING)) == 0
-			|| (oldValue & B_USER_MUTEX_DISABLED) != 0) {
-		// No one has the lock or is waiting for it, or the mutex has been
-		// disabled.
+	if (can_acquire_lock(oldValue))
 		return B_OK;
-	}
 
 	// we have to call the kernel
-	status_t error;
 	do {
 		error = _kern_mutex_lock(&lock->lock, lock->name, 0, 0);
 	} while (error == B_INTERRUPTED);
@@ -71,12 +90,15 @@ mutex_lock(mutex *lock)
 
 
 void
-mutex_unlock(mutex *lock)
+mutex_unlock(mutex* lock)
 {
-	// clear the locked flag
+	if (transaction_unlock() == B_OK)
+		return;
+
 	int32 oldValue = atomic_and(&lock->lock, ~(int32)B_USER_MUTEX_LOCKED);
 	if ((oldValue & B_USER_MUTEX_WAITING) != 0
 			&& (oldValue & B_USER_MUTEX_DISABLED) == 0) {
 		_kern_mutex_unlock(&lock->lock, 0);
 	}
 }
+
