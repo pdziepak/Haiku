@@ -19,6 +19,7 @@ extern "C" {
 
 status_t arch_system_info_init(struct kernel_args *args);
 status_t arch_get_system_info(system_info *info, size_t size);
+uint32	arch_is_transactional_memory_available(void);
 
 #ifdef __cplusplus
 }

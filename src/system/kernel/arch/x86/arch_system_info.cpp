@@ -144,6 +144,13 @@ arch_system_info_init(struct kernel_args *args)
 }
 
 
+uint32
+arch_is_transactional_memory_available(void)
+{
+	return x86_check_feature(IA32_FEATURE_RTM, FEATURE_7_0_EBX);
+}
+
+
 //	#pragma mark -
 
 

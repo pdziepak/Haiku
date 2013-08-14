@@ -33,3 +33,10 @@ arch_system_info_init(struct kernel_args *args)
 	return B_ERROR;
 }
 
+
+uint32
+arch_is_transactional_memory_available(void)
+{
+	return 0;
+}
+

@@ -14,4 +14,6 @@ MergeObject os_arch_$(TARGET_ARCH).o :
 	thread.cpp
 	time.cpp
 	tls.cpp
+	transactional_memory.cpp
+	transactional_memory_asm.S
 ;

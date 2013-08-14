@@ -19,6 +19,7 @@ MergeObject os_arch_$(TARGET_ARCH).o :
 	thread.c
 	time.c
 	tls.c
+	transactional_memory.cpp
 
 	generic_system_time_nsecs.cpp
 ;

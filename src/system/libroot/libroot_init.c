@@ -10,6 +10,7 @@
 #include <OS.h>
 #include <image.h>
 
+#include <transactional_memory.h>
 #include <user_runtime.h>
 
 #include <runtime_loader.h>
@@ -76,6 +77,8 @@ initialize_before(image_id imageID)
 	__init_heap_post_env();
 	__init_pwd_backend();
 	__set_stack_protection();
+	__init_transactional_memory(
+		__gRuntimeLoader->program_args->transactional_memory);
 }
 
 

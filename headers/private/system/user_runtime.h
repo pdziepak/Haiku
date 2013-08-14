@@ -29,6 +29,7 @@ struct user_space_program_args {
 	char	**args;
 	char	**env;
 	mode_t	umask;	// (mode_t)-1 means not set
+	uint32	transactional_memory;
 };
 
 #endif	/* KERNEL_USER_RUNTIME_H_ */
