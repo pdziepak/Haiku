@@ -54,7 +54,7 @@ FUNCTION(__rtm_transaction_abort):
 FUNCTION_END(__rtm_transaction_abort)
 
 
-/* int32	__rtm_transaction_is_active(void) */
+/* bool		__rtm_transaction_is_active(void) */
 FUNCTION(__rtm_transaction_is_active):
 	xorl	%eax, %eax
 	xtest

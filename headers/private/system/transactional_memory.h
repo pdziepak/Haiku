@@ -20,13 +20,13 @@ enum transaction_status {
 extern enum transaction_status	(*_transaction_begin)(void);
 extern void						(*_transaction_end)(void);
 extern void						(*_transaction_abort)(void);
-extern int32					(*_transaction_is_active)(void);
+extern bool						(*_transaction_is_active)(void);
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-void	__init_transactional_memory(int enabled);
+void	__enable_transactional_memory(void);
 
 #ifdef __cplusplus
 }

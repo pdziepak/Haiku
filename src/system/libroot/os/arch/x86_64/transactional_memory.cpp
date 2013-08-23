@@ -12,7 +12,7 @@ extern "C" {
 transaction_status	__rtm_transaction_begin(void);
 void				__rtm_transaction_end(void);
 void				__rtm_transaction_abort(void);
-int32				__rtm_transaction_is_active(void);
+bool				__rtm_transaction_is_active(void);
 
 }
 
@@ -30,27 +30,25 @@ noop()
 }
 
 
-static int32
+static bool
 noop_false()
 {
-	return 0;
+	return false;
 }
 
 
 transaction_status	(*_transaction_begin)(void) = noop_aborted;
 void				(*_transaction_end)(void) = noop;
 void				(*_transaction_abort)(void) = noop;
-int32				(*_transaction_is_active)(void) = noop_false;
+bool				(*_transaction_is_active)(void) = noop_false;
 
 
 void
-__init_transactional_memory(int enabled)
+__enable_transactional_memory(void)
 {
-	if (enabled == 1) {
-		_transaction_begin = __rtm_transaction_begin;
-		_transaction_end = __rtm_transaction_end;
-		_transaction_abort = __rtm_transaction_abort;
-		_transaction_is_active = __rtm_transaction_is_active;
-	}
+	_transaction_begin = __rtm_transaction_begin;
+	_transaction_end = __rtm_transaction_end;
+	_transaction_abort = __rtm_transaction_abort;
+	_transaction_is_active = __rtm_transaction_is_active;
 }
 

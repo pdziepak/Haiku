@@ -20,10 +20,10 @@ noop()
 }
 
 
-static int32
+static bool
 noop_false()
 {
-	return 0;
+	return false;
 }
 
 
@@ -34,8 +34,7 @@ int32				(*_transaction_is_active)(void) = noop_false;
 
 
 void
-__init_transactional_memory(int enabled)
+__enable_transactional_memory(void)
 {
-	(void)enabled;
 }
 

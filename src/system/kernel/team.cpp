@@ -1541,7 +1541,9 @@ team_create_thread_start_internal(void* args)
 	userEnv = userArgs + argCount + 1;
 	path = teamArgs->path;
 
-	uint32 transactional_memory = arch_is_transactional_memory_available();
+	uint32 flags = 0;
+	if (arch_is_transactional_memory_available())
+		flags |= TRANSACTIONAL_MEMORY_AVAILABLE;
 	if (user_strlcpy(programArgs->program_path, path,
 				sizeof(programArgs->program_path)) < B_OK
 		|| user_memcpy(&programArgs->arg_count, &argCount, sizeof(int32)) < B_OK
@@ -1553,8 +1555,7 @@ team_create_thread_start_internal(void* args)
 		|| user_memcpy(&programArgs->error_token, &teamArgs->error_token,
 				sizeof(uint32)) < B_OK
 		|| user_memcpy(&programArgs->umask, &teamArgs->umask, sizeof(mode_t)) < B_OK
-		|| user_memcpy(&programArgs->transactional_memory,
-				&transactional_memory, sizeof(uint32)) < B_OK
+		|| user_memcpy(&programArgs->flags, &flags, sizeof(uint32)) < B_OK
 		|| user_memcpy(userArgs, teamArgs->flat_args,
 				teamArgs->flat_args_size) < B_OK) {
 		// the team deletion process will clean this mess

@@ -18,6 +18,7 @@
 #define MAX_PROCESS_ARGS_SIZE	(128 * 1024)
 	// maximal total size needed for process arguments and environment strings
 
+#define TRANSACTIONAL_MEMORY_AVAILABLE		1
 
 struct user_space_program_args {
 	char	program_name[B_OS_NAME_LENGTH];
@@ -29,7 +30,7 @@ struct user_space_program_args {
 	char	**args;
 	char	**env;
 	mode_t	umask;	// (mode_t)-1 means not set
-	uint32	transactional_memory;
+	uint32	flags;
 };
 
 #endif	/* KERNEL_USER_RUNTIME_H_ */

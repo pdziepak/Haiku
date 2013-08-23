@@ -77,8 +77,10 @@ initialize_before(image_id imageID)
 	__init_heap_post_env();
 	__init_pwd_backend();
 	__set_stack_protection();
-	__init_transactional_memory(
-		__gRuntimeLoader->program_args->transactional_memory);
+
+	uint32 flags = __gRuntimeLoader->program_args->flags;
+	if ((flags & TRANSACTIONAL_MEMORY_AVAILABLE) != 0)
+		__enable_transactional_memory();
 }
 
 
