@@ -41,7 +41,7 @@ atomic_pointer_get_and_set(PointerType** _pointer, const PointerType* set)
 template<typename PointerType> void
 atomic_pointer_set(PointerType** _pointer, const PointerType* set)
 {
-	ASSERT((_pointer & sizeof(PointerType*) - 1) == 0);
+	ASSERT((addr_t(_pointer) & (sizeof(PointerType*) - 1)) == 0);
 #if LONG_MAX == INT_MAX
 	atomic_set((vint32*)_pointer, (int32)set);
 #else
@@ -53,7 +53,7 @@ atomic_pointer_set(PointerType** _pointer, const PointerType* set)
 template<typename PointerType> PointerType*
 atomic_pointer_get(PointerType** _pointer)
 {
-	ASSERT((_pointer & sizeof(PointerType*) - 1) == 0);
+	ASSERT((addr_t(_pointer) & (sizeof(PointerType*) - 1)) == 0);
 #if LONG_MAX == INT_MAX
 	return (PointerType*)atomic_get((vint32*)_pointer);
 #else
