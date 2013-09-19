@@ -9,18 +9,18 @@
 #include <SupportDefs.h>
 
 
-#define TRANSACTION_MAX_RETRY	3
+#define MEMORY_TRANSACTION_MAX_RETRY	3
 
-enum transaction_status {
-	TRANSACTION_OK,
-	TRANSACTION_ABORTED,
-	TRANSACTION_RETRY
+enum memory_transaction_status {
+	MEMORY_TRANSACTION_OK,
+	MEMORY_TRANSACTION_ABORTED,
+	MEMORY_TRANSACTION_RETRY
 };
 
-extern enum transaction_status	(*_transaction_begin)(void);
-extern void						(*_transaction_end)(void);
-extern void						(*_transaction_abort)(void);
-extern bool						(*_transaction_is_active)(void);
+extern enum memory_transaction_status	(*_memory_transaction_begin)(void);
+extern void								(*_memory_transaction_end)(void);
+extern void								(*_memory_transaction_abort)(void);
+extern bool								(*_memory_transaction_is_active)(void);
 
 #ifdef __cplusplus
 extern "C" {
@@ -37,17 +37,17 @@ void	__enable_transactional_memory(void);
 
 template<typename Lock, typename CheckUnlocked>
 static inline status_t
-transaction_lock(Lock* lock, CheckUnlocked isUnlocked)
+memory_transaction_lock(Lock* lock, CheckUnlocked isUnlocked)
 {
-	for (int i = 0; i < TRANSACTION_MAX_RETRY; i++) {
-		transaction_status status = _transaction_begin();
-		if (status == TRANSACTION_OK) {
+	for (int i = 0; i < MEMORY_TRANSACTION_MAX_RETRY; i++) {
+		memory_transaction_status status = _memory_transaction_begin();
+		if (status == MEMORY_TRANSACTION_OK) {
 			if (isUnlocked(lock))
 				return B_OK;
-			_transaction_abort();
+			_memory_transaction_abort();
 		}
 
-		if (status == TRANSACTION_ABORTED)
+		if (status == MEMORY_TRANSACTION_ABORTED)
 			break;
 	}
 
@@ -56,10 +56,10 @@ transaction_lock(Lock* lock, CheckUnlocked isUnlocked)
 
 
 static inline status_t
-transaction_unlock()
+memory_transaction_unlock()
 {
-	if (_transaction_is_active()) {
-		_transaction_end();
+	if (_memory_transaction_is_active()) {
+		_memory_transaction_end();
 		return B_OK;
 	}
 

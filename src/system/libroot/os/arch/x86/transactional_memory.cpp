@@ -9,18 +9,18 @@
 
 extern "C" {
 
-transaction_status	__rtm_transaction_begin(void);
-void				__rtm_transaction_end(void);
-void				__rtm_transaction_abort(void);
-bool				__rtm_transaction_is_active(void);
+memory_transaction_status	__rtm_transaction_begin(void);
+void						__rtm_transaction_end(void);
+void						__rtm_transaction_abort(void);
+bool						__rtm_transaction_is_active(void);
 
 }
 
 
-static transaction_status
+static memory_transaction_status
 noop_aborted()
 {
-	return TRANSACTION_ABORTED;
+	return MEMORY_TRANSACTION_ABORTED;
 }
 
 
@@ -37,18 +37,18 @@ noop_false()
 }
 
 
-transaction_status	(*_transaction_begin)(void) = noop_aborted;
-void				(*_transaction_end)(void) = noop;
-void				(*_transaction_abort)(void) = noop;
-bool				(*_transaction_is_active)(void) = noop_false;
+memory_transaction_status	(*_memory_transaction_begin)(void) = noop_aborted;
+void						(*_memory_transaction_end)(void) = noop;
+void						(*_memory_transaction_abort)(void) = noop;
+bool						(*_memory_transaction_is_active)(void) = noop_false;
 
 
 void
 __enable_transactional_memory(void)
 {
-	_transaction_begin = __rtm_transaction_begin;
-	_transaction_end = __rtm_transaction_end;
-	_transaction_abort = __rtm_transaction_abort;
-	_transaction_is_active = __rtm_transaction_is_active;
+	_memory_transaction_begin = __rtm_transaction_begin;
+	_memory_transaction_end = __rtm_transaction_end;
+	_memory_transaction_abort = __rtm_transaction_abort;
+	_memory_transaction_is_active = __rtm_transaction_is_active;
 }
 

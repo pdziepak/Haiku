@@ -7,10 +7,10 @@
 #include <transactional_memory.h>
 
 
-static transaction_status
+static memory_transaction_status
 noop_aborted()
 {
-	return TRANSACTION_ABORTED;
+	return MEMORY_TRANSACTION_ABORTED;
 }
 
 
@@ -27,10 +27,10 @@ noop_false()
 }
 
 
-transaction_status	(*_transaction_begin)(void) = noop_aborted;
-void				(*_transaction_end)(void) = noop;
-void				(*_transaction_abort)(void) = noop;
-int32				(*_transaction_is_active)(void) = noop_false;
+memory_transaction_status	(*_memory_transaction_begin)(void) = noop_aborted;
+void						(*_memory_transaction_end)(void) = noop;
+void						(*_memory_transaction_abort)(void) = noop;
+int32						(*_memory_transaction_is_active)(void) = noop_false;
 
 
 void

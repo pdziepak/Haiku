@@ -70,7 +70,7 @@ status_t
 mutex_lock(mutex* lock)
 {
 	// try lock elision first
-	status_t error = transaction_lock(lock, CheckUnlocked());
+	status_t error = memory_transaction_lock(lock, CheckUnlocked());
 	if (error == B_OK)
 		return B_OK;
 
@@ -92,7 +92,7 @@ mutex_lock(mutex* lock)
 void
 mutex_unlock(mutex* lock)
 {
-	if (transaction_unlock() == B_OK)
+	if (memory_transaction_unlock() == B_OK)
 		return;
 
 	int32 oldValue = atomic_and(&lock->lock, ~(int32)B_USER_MUTEX_LOCKED);

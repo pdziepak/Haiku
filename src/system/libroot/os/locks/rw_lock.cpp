@@ -132,7 +132,7 @@ status_t
 rw_lock_read_lock(rw_lock *lock)
 {
 	// try lock elision first
-	status_t error = transaction_lock(lock, CheckReadUnlocked());
+	status_t error = memory_transaction_lock(lock, CheckReadUnlocked());
 	if (error == B_OK)
 		return B_OK;
 
@@ -155,7 +155,7 @@ rw_lock_read_lock(rw_lock *lock)
 status_t
 rw_lock_read_unlock(rw_lock *lock)
 {
-	if (transaction_unlock() == B_OK)
+	if (memory_transaction_unlock() == B_OK)
 		return B_OK;
 
 	MutexLocker locker(lock->lock);
@@ -187,7 +187,7 @@ status_t
 rw_lock_write_lock(rw_lock *lock)
 {
 	// try lock elision first
-	status_t error = transaction_lock(lock, CheckWriteUnlocked());
+	status_t error = memory_transaction_lock(lock, CheckWriteUnlocked());
 	if (error == B_OK)
 		return B_OK;
 
@@ -224,7 +224,7 @@ rw_lock_write_lock(rw_lock *lock)
 status_t
 rw_lock_write_unlock(rw_lock *lock)
 {
-	if (transaction_unlock() == B_OK)
+	if (memory_transaction_unlock() == B_OK)
 		return B_OK;
 
 	MutexLocker locker(lock->lock);

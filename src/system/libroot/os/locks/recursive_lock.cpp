@@ -66,7 +66,7 @@ status_t
 recursive_lock_lock(recursive_lock *lock)
 {
 	// try lock elision first
-	status_t error = transaction_lock(lock, CheckUnlocked());
+	status_t error = memory_transaction_lock(lock, CheckUnlocked());
 	if (error == B_OK)
 		return B_OK;
 
@@ -85,7 +85,7 @@ recursive_lock_lock(recursive_lock *lock)
 void
 recursive_lock_unlock(recursive_lock *lock)
 {
-	if (transaction_unlock() == B_OK)
+	if (memory_transaction_unlock() == B_OK)
 		return;
 
 	if (find_thread(NULL) != lock->holder) {
