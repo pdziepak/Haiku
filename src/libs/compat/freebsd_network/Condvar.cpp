@@ -4,10 +4,8 @@
  */
 
 
-extern "C" {
 #include <compat/sys/condvar.h>
 #include <compat/sys/kernel.h>
-}
 
 #include "Condvar.h"
 

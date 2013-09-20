@@ -5,9 +5,7 @@
  */
 
 
-extern "C" {
 #include "device.h"
-}
 
 #include <stdlib.h>
 

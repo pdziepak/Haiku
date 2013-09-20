@@ -47,6 +47,11 @@ typedef struct {
 #define DRIVER_MODULE_NAME(name, busname) \
 	__fbsd_ ## name ## _ ## busname
 
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 status_t _fbsd_init_hardware(driver_t *driver[]);
 status_t _fbsd_init_drivers(driver_t *driver[]);
 status_t _fbsd_uninit_drivers(driver_t *driver[]);
@@ -224,6 +229,10 @@ extern const char* __haiku_firmware_name_map[][2];
 #define NO_HAIKU_FIRMWARE_NAME_MAP() \
 	const uint __haiku_firmware_parts_count = 0; \
 	const char* __haiku_firmware_name_map[0][2] = {}
+
+#ifdef __cplusplus
+}
+#endif
 
 
 /* #pragma mark - synchronization */

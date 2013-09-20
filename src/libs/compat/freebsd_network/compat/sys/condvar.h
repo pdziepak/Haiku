@@ -8,13 +8,7 @@
 
 #include <sys/queue.h>
 
-#ifdef __cplusplus
-} /* extern "C" */
 #include <kernel_c++_structs.h>
-extern "C" {
-#else
-#include <kernel_c++_structs.h>
-#endif
 
 
 struct cv {
@@ -22,10 +16,18 @@ struct cv {
 };
 
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 void cv_init(struct cv*, const char*);
 void cv_destroy(struct cv*);
 void cv_wait(struct cv*, struct mtx*);
 int cv_timedwait(struct cv*, struct mtx*, int);
 void cv_signal(struct cv*);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* _FBSD_COMPAT_SYS_CONDVAR_H_ */
