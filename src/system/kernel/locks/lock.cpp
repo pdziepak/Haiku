@@ -634,6 +634,11 @@ mutex_switch_lock(mutex* from, mutex* to)
 	InterruptsSpinLocker locker(gSchedulerLock);
 
 #if !KDEBUG
+	if (_memory_transaction_is_active() != 0) {
+		_memory_transaction_end();
+		return mutex_lock_threads_locked(to);
+	}
+
 	if (atomic_add(&from->count, 1) < -1)
 #endif
 		_mutex_unlock(from, true);

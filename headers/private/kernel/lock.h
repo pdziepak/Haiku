@@ -12,6 +12,7 @@
 #include <OS.h>
 #include <debug.h>
 
+#include <transactional_memory.h>
 
 struct mutex_waiter;
 
@@ -209,6 +210,12 @@ mutex_lock(mutex* lock)
 #if KDEBUG
 	return _mutex_lock(lock, false);
 #else
+	if (_memory_transaction_begin() == MEMORY_TRANSACTION_OK) {
+			if (atomic_get(&lock->count) == 0)
+				return B_OK;
+		_memory_transaction_abort();
+	}
+
 	if (atomic_add(&lock->count, -1) < 0)
 		return _mutex_lock(lock, false);
 	return B_OK;
@@ -222,6 +229,12 @@ mutex_lock_threads_locked(mutex* lock)
 #if KDEBUG
 	return _mutex_lock(lock, true);
 #else
+	if (_memory_transaction_begin() == MEMORY_TRANSACTION_OK) {
+			if (atomic_get(&lock->count) == 0)
+				return B_OK;
+		_memory_transaction_abort();
+	}
+
 	if (atomic_add(&lock->count, -1) < 0)
 		return _mutex_lock(lock, true);
 	return B_OK;
@@ -235,6 +248,12 @@ mutex_trylock(mutex* lock)
 #if KDEBUG
 	return _mutex_trylock(lock);
 #else
+	if (_memory_transaction_begin() == MEMORY_TRANSACTION_OK) {
+			if (atomic_get(&lock->count) == 0)
+				return B_OK;
+		_memory_transaction_abort();
+	}
+
 	if (atomic_test_and_set(&lock->count, -1, 0) != 0)
 		return B_WOULD_BLOCK;
 	return B_OK;
@@ -248,6 +267,12 @@ mutex_lock_with_timeout(mutex* lock, uint32 timeoutFlags, bigtime_t timeout)
 #if KDEBUG
 	return _mutex_lock_with_timeout(lock, timeoutFlags, timeout);
 #else
+	if (_memory_transaction_begin() == MEMORY_TRANSACTION_OK) {
+			if (atomic_get(&lock->count) == 0)
+				return B_OK;
+		_memory_transaction_abort();
+	}
+
 	if (atomic_add(&lock->count, -1) < 0)
 		return _mutex_lock_with_timeout(lock, timeoutFlags, timeout);
 	return B_OK;
@@ -259,6 +284,11 @@ static inline void
 mutex_unlock(mutex* lock)
 {
 #if !KDEBUG
+	if (_memory_transaction_is_active() != 0) {
+		_memory_transaction_end();
+		return;
+	}
+
 	if (atomic_add(&lock->count, 1) < -1)
 #endif
 		_mutex_unlock(lock, false);
@@ -271,6 +301,8 @@ mutex_transfer_lock(mutex* lock, thread_id thread)
 #if KDEBUG
 	lock->holder = thread;
 #endif
+	if (_memory_transaction_is_active())
+		_memory_transaction_abort();
 }
 
 
