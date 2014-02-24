@@ -1,8 +1,9 @@
 /*
- * Copyright 2009-2010, Haiku Inc. All rights reserved.
+ * Copyright 2009-2014, Haiku Inc. All rights reserved.
  * Distributed under the terms of the MIT License.
  *
  * Authors:
+ *		Paweł Dziepak <pdziepak@quarnos.org>
  *		Michael Lotz <mmlr@mlotz.ch>
  */
 
@@ -92,6 +93,8 @@ public:
 		fs_vnode *			SuperVnode() { return &fSuperVnode; }
 		ino_t				InodeNumber() { return fInodeNumber; }
 
+		status_t			GetName(char* name, size_t length);
+
 		status_t			GetAttributeFile(AttributeFile **attributeFile);
 		status_t			WriteAttributeFile();
 		status_t			RemoveAttributeFile();
@@ -106,8 +109,8 @@ private:
 
 class AttributeFile {
 public:
-								AttributeFile(fs_volume *overlay,
-									fs_volume *volume, fs_vnode *vnode);
+								AttributeFile(fs_volume* overlay,
+									fs_volume* volume, OverlayInode* subVnode);
 								~AttributeFile();
 
 			status_t			InitCheck() { return fStatus; }
@@ -116,10 +119,10 @@ public:
 			ino_t				FileInode() { return fFileInode; }
 
 			status_t			CreateEmpty();
-			status_t			WriteAttributeFile(fs_volume *overlay,
-									fs_volume *volume, fs_vnode *vnode);
-			status_t			RemoveAttributeFile(fs_volume *overlay,
-									fs_volume *volume, fs_vnode *vnode);
+			status_t			WriteAttributeFile(fs_volume* overlay,
+									fs_volume* volume, OverlayInode* subVnode);
+			status_t			RemoveAttributeFile(fs_volume* overlay,
+									fs_volume* volume, OverlayInode* subVnode);
 
 			status_t			ReadAttributeDir(struct dirent *dirent,
 									size_t bufferSize, uint32 *numEntries,
@@ -256,11 +259,97 @@ OverlayInode::InitCheck()
 
 
 status_t
+OverlayInode::GetName(char* name, size_t length)
+{
+	if (fSuperVnode.ops->get_vnode_name != NULL) {
+		name[length - 1] = '\0';
+		status_t result = fSuperVnode.ops->get_vnode_name(Volume(),
+				&fSuperVnode, name, length - 1);
+		if (result == B_OK)
+			return B_OK;
+	}
+
+	if (fSuperVnode.ops->lookup == NULL) {
+		TRACE_ALWAYS("cannot get vnode name, required hooks missing\n");
+		return B_UNSUPPORTED;
+	}
+
+	// TODO: we are using a hack here, cf. TODO in AttributeFile constructor
+	ino_t parentInode;
+	status_t result
+		= fSuperVnode.ops->lookup(Volume(), &fSuperVnode, "..", &parentInode);
+	if (result != B_OK)
+		return result;
+
+	if (parentInode == fInodeNumber)
+		strlcpy(name, "_ROOT_DIR", length);
+	else {
+		OverlayInode* overlayInode;
+		result = get_vnode(Volume(), parentInode, (void **)&overlayInode);
+		if (result != B_OK) {
+			TRACE_ALWAYS("getting vnode failed: %s\n", strerror(result));
+			return result;
+		}
+
+		fs_vnode parentVnode = *overlayInode->SuperVnode();
+
+		if (parentVnode.ops->open_dir == NULL
+			|| parentVnode.ops->read_dir == NULL) {
+			TRACE_ALWAYS("cannot get vnode name, required hooks missing\n");
+			put_vnode(Volume(), parentInode);
+			return B_UNSUPPORTED;
+		}
+
+		void* cookie;
+		result = parentVnode.ops->open_dir(Volume(), &parentVnode, &cookie);
+		if (result != B_OK) {
+			TRACE_ALWAYS("cannot open parent directory\n");
+			put_vnode(Volume(), parentInode);
+			return result;
+		}
+
+		uint8 directoryEntryBuffer[sizeof(dirent) + B_FILE_NAME_LENGTH];
+		dirent* directoryEntry = (dirent*)directoryEntryBuffer;
+		while (true) {
+			uint32 entriesRead = 1;
+
+			result = parentVnode.ops->read_dir(Volume(), &parentVnode, cookie,
+					(dirent*)directoryEntryBuffer, sizeof(directoryEntryBuffer),
+					&entriesRead);
+			if (entriesRead == 0)
+				result = B_ENTRY_NOT_FOUND;
+			if (result != B_OK)
+				break;
+			if (directoryEntry->d_ino != fInodeNumber)
+				continue;
+
+			strlcpy(name, directoryEntry->d_name, length);
+			break;
+		}
+
+		if (parentVnode.ops->close_dir != NULL)
+			parentVnode.ops->close_dir(Volume(), &parentVnode, cookie);
+		if (parentVnode.ops->free_dir_cookie != NULL)
+			parentVnode.ops->free_dir_cookie(Volume(), &parentVnode, cookie);
+
+		put_vnode(Volume(), parentInode);
+
+		if (result != B_OK) {
+			TRACE_ALWAYS("could not find vnode in its parent directory\n");
+			return result;
+		}
+	}
+
+	return B_OK;
+}
+
+
+status_t
 OverlayInode::GetAttributeFile(AttributeFile **attributeFile)
 {
 	if (fAttributeFile == NULL) {
 		fAttributeFile = new(std::nothrow) AttributeFile(Volume(),
-			SuperVolume(), &fSuperVnode);
+			SuperVolume(), this);
 		if (fAttributeFile == NULL) {
 			TRACE_ALWAYS("no memory to allocate attribute file\n");
 			return B_NO_MEMORY;
@@ -294,8 +383,7 @@ OverlayInode::WriteAttributeFile()
 	if (result != B_OK)
 		return result;
 
-	return fAttributeFile->WriteAttributeFile(Volume(), SuperVolume(),
-		&fSuperVnode);
+	return fAttributeFile->WriteAttributeFile(Volume(), SuperVolume(), this);
 }
 
 
@@ -309,8 +397,7 @@ OverlayInode::RemoveAttributeFile()
 	if (result != B_OK)
 		return result;
 
-	return fAttributeFile->RemoveAttributeFile(Volume(), SuperVolume(),
-		&fSuperVnode);
+	return fAttributeFile->RemoveAttributeFile(Volume(), SuperVolume(), this);
 }
 
 
@@ -318,11 +405,11 @@ OverlayInode::RemoveAttributeFile()
 
 
 AttributeFile::AttributeFile(fs_volume *overlay, fs_volume *volume,
-	fs_vnode *vnode)
+	OverlayInode* subVnode)
 	:
 	fStatus(B_NO_INIT),
 	fVolumeID(volume->id),
-	fFileInode(0),
+	fFileInode(subVnode->InodeNumber()),
 	fDirectoryInode(0),
 	fAttributeDirInode(0),
 	fAttributeFileInode(0),
@@ -330,31 +417,15 @@ AttributeFile::AttributeFile(fs_volume *overlay, fs_volume *volume,
 	fAttributeDirIndex(0),
 	fEntries(NULL)
 {
-	if (vnode->ops->get_vnode_name == NULL) {
-		TRACE_ALWAYS("cannot get vnode name, hook missing\n");
-		fStatus = B_UNSUPPORTED;
-		return;
-	}
-
 	char nameBuffer[B_FILE_NAME_LENGTH];
-	nameBuffer[sizeof(nameBuffer) - 1] = 0;
-	fStatus = vnode->ops->get_vnode_name(volume, vnode, nameBuffer,
-		sizeof(nameBuffer) - 1);
-	if (fStatus != B_OK) {
-		TRACE_ALWAYS("failed to get vnode name: %s\n", strerror(fStatus));
+	fStatus = subVnode->GetName(nameBuffer, B_FILE_NAME_LENGTH);
+	if (fStatus != B_OK)
 		return;
-	}
 
 	if (strcmp(nameBuffer, ATTRIBUTE_OVERLAY_ATTRIBUTE_DIR_NAME) == 0) {
 		// we don't want attribute overlays on the attribute dir itself
 		fStatus = B_UNSUPPORTED;
 		return;
-	}
-
-	struct stat stat;
-	if (vnode->ops->read_stat != NULL
-		&& vnode->ops->read_stat(volume, vnode, &stat) == B_OK) {
-		fFileInode = stat.st_ino;
 	}
 
 	// TODO: the ".." lookup is not actually valid for non-directory vnodes.
@@ -365,7 +436,7 @@ AttributeFile::AttributeFile(fs_volume *overlay, fs_volume *volume,
 	const char *lookup[]
 		= { "..", ATTRIBUTE_OVERLAY_ATTRIBUTE_DIR_NAME, nameBuffer };
 	int32 lookupCount = sizeof(lookup) / sizeof(lookup[0]);
-	fs_vnode currentVnode = *vnode;
+	fs_vnode currentVnode = *subVnode->SuperVnode();
 	ino_t lastInodeNumber = 0;
 
 	for (int32 i = 0; i < lookupCount; i++) {
@@ -418,6 +489,7 @@ AttributeFile::AttributeFile(fs_volume *overlay, fs_volume *volume,
 		return;
 	}
 
+	struct stat stat;
 	fStatus = currentVnode.ops->read_stat(volume, &currentVnode, &stat);
 	if (fStatus != B_OK) {
 		TRACE_ALWAYS("failed to stat attribute file: %s\n", strerror(fStatus));
@@ -534,22 +606,20 @@ AttributeFile::CreateEmpty()
 
 
 status_t
-AttributeFile::WriteAttributeFile(fs_volume *overlay, fs_volume *volume,
-	fs_vnode *vnode)
+AttributeFile::WriteAttributeFile(fs_volume* overlay, fs_volume* volume,
+	OverlayInode* subVnode)
 {
 	if (fFile == NULL)
 		return B_NO_INIT;
 
 	char nameBuffer[B_FILE_NAME_LENGTH];
-	nameBuffer[sizeof(nameBuffer) - 1] = 0;
-	status_t result = vnode->ops->get_vnode_name(volume, vnode, nameBuffer,
-		sizeof(nameBuffer) - 1);
+	status_t result = subVnode->GetName(nameBuffer, B_FILE_NAME_LENGTH);
 	if (result != B_OK) {
 		TRACE_ALWAYS("failed to get vnode name: %s\n", strerror(result));
 		return result;
 	}
 
-	fs_vnode currentVnode = *vnode;
+	fs_vnode currentVnode = *subVnode->SuperVnode();
 	if (fDirectoryInode == 0) {
 		if (currentVnode.ops->lookup == NULL) {
 			TRACE_ALWAYS("lookup not possible, lookup hook missing\n");
@@ -700,8 +770,8 @@ close_and_put:
 
 
 status_t
-AttributeFile::RemoveAttributeFile(fs_volume *overlay, fs_volume *volume,
-	fs_vnode *vnode)
+AttributeFile::RemoveAttributeFile(fs_volume* overlay, fs_volume* volume,
+	OverlayInode* subVnode)
 {
 	bool hasAttributeFile = fAttributeFileInode != 0;
 	ino_t attributeDirInode = fAttributeDirInode;
@@ -717,9 +787,7 @@ AttributeFile::RemoveAttributeFile(fs_volume *overlay, fs_volume *volume,
 	}
 
 	char nameBuffer[B_FILE_NAME_LENGTH];
-	nameBuffer[sizeof(nameBuffer) - 1] = 0;
-	status_t result = vnode->ops->get_vnode_name(volume, vnode, nameBuffer,
-		sizeof(nameBuffer) - 1);
+	status_t result = subVnode->GetName(nameBuffer, B_FILE_NAME_LENGTH);
 	if (result != B_OK) {
 		TRACE_ALWAYS("failed to get vnode name: %s\n", strerror(result));
 		return result;
