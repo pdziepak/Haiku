@@ -732,6 +732,7 @@ AttributeFile::WriteAttributeFile(fs_volume* overlay, fs_volume* volume,
 	size_t writeLength = sizeof(attribute_file) - 1;
 	result = currentVnode.ops->write(volume, &currentVnode, attrFileCookie,
 		position, fFile, &writeLength);
+	position += writeLength;
 	if (result != B_OK) {
 		TRACE_ALWAYS("failed to write to attribute file: %s\n",
 			strerror(result));
@@ -742,6 +743,7 @@ AttributeFile::WriteAttributeFile(fs_volume* overlay, fs_volume* volume,
 		writeLength = fEntries[i]->EntrySize();
 		result = currentVnode.ops->write(volume, &currentVnode, attrFileCookie,
 			position, fEntries[i]->Entry(), &writeLength);
+		position += writeLength;
 		if (result != B_OK) {
 			TRACE_ALWAYS("failed to write to attribute file: %s\n",
 				strerror(result));
@@ -751,6 +753,7 @@ AttributeFile::WriteAttributeFile(fs_volume* overlay, fs_volume* volume,
 		writeLength = fEntries[i]->DataSize();
 		result = currentVnode.ops->write(volume, &currentVnode, attrFileCookie,
 			position, fEntries[i]->Data(), &writeLength);
+		position += writeLength;
 		if (result != B_OK) {
 			TRACE_ALWAYS("failed to write to attribute file: %s\n",
 				strerror(result));
@@ -1617,6 +1620,8 @@ overlay_close_attr(fs_volume *volume, fs_vnode *vnode, void *cookie)
 static status_t
 overlay_free_attr_cookie(fs_volume *volume, fs_vnode *vnode, void *cookie)
 {
+	OverlayInode* node = (OverlayInode* )vnode->private_node;
+	node->WriteAttributeFile();
 	return B_OK;
 }
 
@@ -1649,7 +1654,13 @@ static status_t
 overlay_write_attr_stat(fs_volume *volume, fs_vnode *vnode, void *cookie,
 	const struct stat *stat, int statMask)
 {
-	return ((AttributeEntry *)cookie)->WriteStat(stat, statMask);
+	status_t result = ((AttributeEntry *)cookie)->WriteStat(stat, statMask);
+	if (result == B_OK) {
+		OverlayInode* node = (OverlayInode*)vnode->private_node;
+		node->WriteAttributeFile();
+	}
+
+	return result;
 }
 
 
@@ -1691,7 +1702,7 @@ overlay_rename_attr(fs_volume *volume, fs_vnode *vnode,
 		return result;
 	}
 
-	return B_OK;
+	return node->WriteAttributeFile();
 }
 
 
@@ -1704,7 +1715,11 @@ overlay_remove_attr(fs_volume *volume, fs_vnode *vnode, const char *name)
 	if (result != B_OK)
 		return result;
 
-	return attributeFile->RemoveAttribute(name, NULL);
+	result = attributeFile->RemoveAttribute(name, NULL);
+	if (result != B_OK)
+		return result;
+
+	return node->WriteAttributeFile();
 }
 
 
