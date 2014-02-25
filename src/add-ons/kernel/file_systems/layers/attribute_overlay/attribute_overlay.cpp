@@ -1502,13 +1502,31 @@ overlay_read_dir(fs_volume *volume, fs_vnode *vnode, void *cookie,
 	if (superVnode->ops->read_dir != NULL) {
 		status_t result = superVnode->ops->read_dir(volume->super_volume,
 			superVnode, cookie, buffer, bufferSize, num);
+		if (result != B_OK)
+			return result;
 
-		// TODO: handle multiple records
-		if (result == B_OK && *num == 1 && strcmp(buffer->d_name,
-			ATTRIBUTE_OVERLAY_ATTRIBUTE_DIR_NAME) == 0) {
-			// skip over the attribute directory
-			return superVnode->ops->read_dir(volume->super_volume, superVnode,
-				cookie, buffer, bufferSize, num);
+		dirent* currentEntry = buffer;
+		size_t bufferPosition = 0;
+		for (uint32 i = 0; i < *num; i++) {
+			size_t entrySize = currentEntry->d_reclen;
+			dirent* nextEntry = (dirent*)((uint8*)currentEntry + entrySize);
+
+			bufferPosition += entrySize;
+			if (strcmp(currentEntry->d_name,
+					ATTRIBUTE_OVERLAY_ATTRIBUTE_DIR_NAME) == 0) {
+
+				// skip over the attribute directory
+				(*num)--;
+				if (*num == 0) {
+					return superVnode->ops->read_dir(volume->super_volume,
+						superVnode, cookie, buffer, bufferSize, num);
+				} else {
+					memmove(currentEntry, nextEntry,
+						bufferSize - bufferPosition);
+				}
+			}
+
+			currentEntry = nextEntry;
 		}
 
 		return result;
