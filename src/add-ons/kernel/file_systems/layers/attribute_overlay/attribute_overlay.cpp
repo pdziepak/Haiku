@@ -833,6 +833,9 @@ AttributeFile::CountAttributes()
 AttributeEntry *
 AttributeFile::FindAttribute(const char *name, uint32 *index)
 {
+	if (fEntries == NULL)
+		return NULL;
+
 	for (uint32 i = 0; i < fFile->entry_count; i++) {
 		if (strcmp(fEntries[i]->Name(), name) == 0) {
 			if (index)
