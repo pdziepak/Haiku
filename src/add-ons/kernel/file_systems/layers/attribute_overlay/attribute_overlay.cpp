@@ -650,17 +650,15 @@ AttributeFile::WriteAttributeFile(fs_volume* overlay, fs_volume* volume,
 		currentVnode = *overlayInode->SuperVnode();
 
 		// create the attribute directory
-		result = currentVnode.ops->create_dir(volume, &currentVnode,
+		currentVnode.ops->create_dir(volume, &currentVnode,
 			ATTRIBUTE_OVERLAY_ATTRIBUTE_DIR_NAME, S_IRWXU | S_IRWXG | S_IRWXO);
 
-		if (result == B_OK) {
-			result = currentVnode.ops->lookup(volume, &currentVnode,
-				ATTRIBUTE_OVERLAY_ATTRIBUTE_DIR_NAME, &fAttributeDirInode);
+		result = currentVnode.ops->lookup(volume, &currentVnode,
+			ATTRIBUTE_OVERLAY_ATTRIBUTE_DIR_NAME, &fAttributeDirInode);
 
-			// lookup() got us a reference we don't need -- put it
-			if (result == B_OK)
-				put_vnode(volume, fAttributeDirInode);
-		}
+		// lookup() got us a reference we don't need -- put it
+		if (result == B_OK)
+			put_vnode(volume, fAttributeDirInode);
 
 		put_vnode(volume, fDirectoryInode);
 
