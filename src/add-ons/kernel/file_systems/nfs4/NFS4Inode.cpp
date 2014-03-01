@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 Haiku, Inc. All rights reserved.
+ * Copyright 2012-2014 Haiku, Inc. All rights reserved.
  * Distributed under the terms of the MIT License.
  *
  * Authors:
@@ -116,6 +116,60 @@ NFS4Inode::Access(uint32* allowed)
 	} while (true);
 }
 
+
+status_t
+NFS4Inode::ManualLookUpUp(uint64* fileID)
+{
+	if (fInfo.fNames == NULL || fInfo.fNames->fNames.IsEmpty())
+		return B_ENTRY_NOT_FOUND;
+	if (fInfo.fNames->fNames.Size() != 1)
+		return B_UNSUPPORTED;
+
+	uint32 attempt = 0;
+	do {
+		RPC::Server* server = fFileSystem->Server();
+		Request request(server, fFileSystem);
+		RequestBuilder& requestBuilder = request.Builder();
+
+		requestBuilder.PutFH(fInfo.fNames->fNames.Head()->fParent->fHandle);
+	
+		Attribute attributes[] = { FATTR4_FSID, FATTR4_FILEID };
+		requestBuilder.GetAttr(attributes,
+			sizeof(attributes) / sizeof(Attribute));
+
+		requestBuilder.LookUp(fInfo.fNames->fNames.Head()->fName);
+
+		status_t result = request.Send();
+		if (result != B_OK)
+			return result;
+
+		ReplyInterpreter& reply = request.Reply();
+
+		if (HandleErrors(attempt, reply.NFS4Error(), server))
+			continue;
+
+		reply.PutFH();
+
+		AttrValue* values;
+		uint32 count;
+		reply.GetAttr(&values, &count);
+		if (result != B_OK)
+			return result;
+		ArrayDeleter<AttrValue> _(values);
+
+		// FATTR4_FSID is mandatory
+		FileSystemId* fsid
+			= reinterpret_cast<FileSystemId*>(values[0].fData.fPointer);
+		if (*fsid != fFileSystem->FsId())
+			return B_ENTRY_NOT_FOUND;
+
+		if (count < 2 || values[1].fAttribute != FATTR4_FILEID)
+			return B_UNSUPPORTED;
+		*fileID = values[1].fData.fValue64;
+
+		return reply.LookUp();
+	} while (true);
+}
 
 status_t
 NFS4Inode::LookUp(const char* name, uint64* change, uint64* fileID,

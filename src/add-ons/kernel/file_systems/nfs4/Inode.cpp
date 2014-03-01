@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 Haiku, Inc. All rights reserved.
+ * Copyright 2012-2014 Haiku, Inc. All rights reserved.
  * Distributed under the terms of the MIT License.
  *
  * Authors:
@@ -192,14 +192,26 @@ Inode::LookUp(const char* name, ino_t* id)
 	ASSERT(name != NULL);
 	ASSERT(id != NULL);
 
-	if (fType != NF4DIR)
+	if (fType == NF4REG && strcmp(name, "..") == 0) {
+		uint64 fileID;
+		status_t result = ManualLookUpUp(&fileID);
+		if (result != B_OK)
+			return result;
+
+		*id = FileIdToInoT(fileID);
+
+		return B_OK;
+	} else if (fType != NF4DIR)
 		return B_NOT_A_DIRECTORY;
 
 	uint64 change;
 	uint64 fileID;
 	FileHandle handle;
 	status_t result = NFS4Inode::LookUp(name, &change, &fileID, &handle);
-	if (result != B_OK)
+	if (result == B_ENTRY_NOT_FOUND && strcmp(name, "..") == 0) {
+		*id = FileIdToInoT(fInfo.fFileId);
+		return B_OK;
+	} else if (result != B_OK)
 		return result;
 
 	*id = FileIdToInoT(fileID);

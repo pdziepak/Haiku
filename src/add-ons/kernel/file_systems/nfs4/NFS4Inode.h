@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 Haiku, Inc. All rights reserved.
+ * Copyright 2012-2014 Haiku, Inc. All rights reserved.
  * Distributed under the terms of the MIT License.
  *
  * Authors:
@@ -30,6 +30,7 @@ protected:
 
 			status_t	CommitWrites();
 
+			status_t	ManualLookUpUp(uint64* fileID);
 			status_t	LookUp(const char* name, uint64* change, uint64* fileID,
 							FileHandle* handle, bool parent = false);
 
