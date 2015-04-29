@@ -1,0 +1,828 @@
+/*
+ * Copyright 2015, Paweł Dziepak, pdziepak@quarnos.org.
+ * Distributed under the terms of the MIT License.
+ */
+#ifndef _KERNEL_LEGACY_ATOMIC
+#define _KERNEL_LEGACY_ATOMIC
+
+
+#if __GNUC__ != 2
+#error This header should be used only with GCC2
+#endif
+
+#ifndef __i386__
+#error This header is available only for x86
+#endif
+
+
+#include <stdint.h>
+
+
+namespace std {
+
+namespace __private {
+
+
+static inline uint8_t
+compare_exchange1(uint8_t* pointer, uint8_t expected, uint8_t desired)
+{
+	asm volatile("lock; cmpxchgb %b1, %2"
+		: "+a" (expected)
+		: "r" (desired), "m" (*pointer)
+		: "memory");
+	return expected;
+}
+
+
+static inline uint16_t
+compare_exchange2(uint16_t* pointer, uint16_t expected, uint16_t desired)
+{
+	asm volatile("lock; cmpxchgw %w1, %2"
+		: "+a" (expected)
+		: "r" (desired), "m" (*pointer)
+		: "memory");
+	return expected;
+}
+
+
+static inline uint32_t
+compare_exchange4(uint32_t* pointer, uint32_t expected, uint32_t desired)
+{
+	asm volatile("lock; cmpxchgl %1, %2"
+		: "+a" (expected)
+		: "r" (desired), "m" (*pointer)
+		: "memory");
+	return expected;
+}
+
+
+static inline uint64_t
+compare_exchange8(uint64_t* pointer, uint64_t expected, uint64_t desired)
+{
+	uint32_t expectedLow = expected;
+	uint32_t expectedHigh = expected >> 32;
+	uint32_t desiredLow = desired;
+	uint32_t desiredHigh = desired >> 32;
+	asm volatile("lock; cmpxchg8b %4"
+		: "+a" (expectedLow), "+d" (expectedHigh)
+		: "b" (desiredLow), "c" (desiredHigh), "m" (*pointer));
+	return (uint64_t(expectedHigh) << 32) | expectedLow;
+}
+
+
+template<typename T>
+static inline T
+compare_exchange(T* pointer, T& expected, T desired)
+{
+	static_assert(sizeof(T) == 1 || sizeof(T) == 2 || sizeof(T) == 4
+		|| sizeof(T) == 8, "unsupported atomic variable size");
+	switch (sizeof(T)) {
+	case 1:
+		{
+			uint8_t value = compare_exchange1(
+					reinterpret_cast<uint8_t*>(pointer),
+					*reinterpret_cast<uint8_t*>(&expected),
+					*reinterpret_cast<uint8_t*>(&desired));
+			bool result = *reinterpret_cast<T*>(&value) == expected;
+			expected = *reinterpret_cast<T*>(&value);
+			return result;
+		}
+	case 2:
+		{
+			uint16_t value = compare_exchange2(
+					reinterpret_cast<uint16_t*>(pointer),
+					*reinterpret_cast<uint16_t*>(&expected),
+					*reinterpret_cast<uint16_t*>(&desired));
+			bool result = *reinterpret_cast<T*>(&value) == expected;
+			expected = *reinterpret_cast<T*>(&value);
+			return result;
+		}
+	case 4:
+		{
+			uint32_t value = compare_exchange4(
+					reinterpret_cast<uint32_t*>(pointer),
+					*reinterpret_cast<uint32_t*>(&expected),
+					*reinterpret_cast<uint32_t*>(&desired));
+			bool result = *reinterpret_cast<T*>(&value) == expected;
+			expected = *reinterpret_cast<T*>(&value);
+			return result;
+		}
+	case 8:
+		{
+			uint64_t value = compare_exchange8(
+					reinterpret_cast<uint64_t*>(pointer),
+					*reinterpret_cast<uint64_t*>(&expected),
+					*reinterpret_cast<uint64_t*>(&desired));
+			bool result = *reinterpret_cast<T*>(&value) == expected;
+			expected = *reinterpret_cast<T*>(&value);
+			return result;
+		}
+	}
+	// unreachable
+	return bool();
+}
+
+
+static inline uint8_t
+exchange1(uint8_t* pointer, uint8_t value)
+{
+	asm volatile("xchgb %b0, %1"
+		: "+r" (value)
+		: "m" (pointer)
+		: "memory");
+	return value;
+}
+
+
+static inline uint16_t
+exchange2(uint16_t* pointer, uint16_t value)
+{
+	asm volatile("xchgw %w0, %1"
+		: "+r" (value)
+		: "m" (pointer)
+		: "memory");
+	return value;
+}
+
+
+static inline uint32_t
+exchange4(uint32_t* pointer, uint32_t value)
+{
+	asm volatile("xchgl %0, %1"
+		: "+r" (value)
+		: "m" (pointer)
+		: "memory");
+	return value;
+}
+
+
+static inline uint64_t
+exchange8(uint64_t* pointer, uint64_t value)
+{
+	uint64_t old;
+	do {
+		old = *pointer;
+	} while (old != compare_exchange8(pointer, old, value));
+	return old;
+}
+
+
+template<typename T>
+static inline T
+exchange(T* pointer, T value)
+{
+	static_assert(sizeof(T) == 1 || sizeof(T) == 2 || sizeof(T) == 4
+		|| sizeof(T) == 8, "unsupported atomic variable size");
+	switch (sizeof(T)) {
+	case 1:
+		{
+			uint8_t temp = exchange1(reinterpret_cast<uint8_t*>(pointer),
+					*reinterpret_cast<uint8_t*>(&value));
+			return *reinterpret_cast<T*>(&temp);
+		}
+	case 2:
+		{
+			uint32_t temp = exchange2(reinterpret_cast<uint16_t*>(pointer),
+					*reinterpret_cast<uint16_t*>(&value));
+			return *reinterpret_cast<T*>(&temp);
+		}
+	case 4:
+		{
+			uint32_t temp = exchange4(reinterpret_cast<uint32_t*>(pointer),
+					*reinterpret_cast<uint32_t*>(&value));
+			return *reinterpret_cast<T*>(&temp);
+		}
+	case 8:
+		{
+			uint64_t temp = exchange8(reinterpret_cast<uint64_t*>(pointer),
+					*reinterpret_cast<uint64_t*>(&value));
+			return *reinterpret_cast<T*>(&temp);
+		}
+	}
+	// unreachable
+	return T();
+}
+
+
+static inline uint8_t
+fetch_add1(uint8_t* pointer, uint8_t value)
+{
+	asm volatile("lock; xaddb %b0, %1"
+		: "+r" (value)
+		: "m" (*pointer)
+		: "memory");
+	return value;
+}
+
+
+static inline uint16_t
+fetch_add2(uint16_t* pointer, uint16_t value)
+{
+	asm volatile("lock; xaddw %w0, %1"
+		: "+r" (value)
+		: "m" (*pointer)
+		: "memory");
+	return value;
+}
+
+
+static inline uint32_t
+fetch_add4(uint32_t* pointer, uint32_t value)
+{
+	asm volatile("lock; xaddl %0, %1"
+		: "+r" (value)
+		: "m" (*pointer)
+		: "memory");
+	return value;
+}
+
+
+static inline uint64_t
+fetch_add8(uint64_t* pointer, uint64_t value)
+{
+	uint64_t oldValue;
+	uint64_t newValue;
+	do {
+		oldValue = *pointer;
+		newValue = oldValue + value;
+	} while (oldValue != compare_exchange8(pointer, oldValue, newValue));
+	return oldValue;
+}
+
+
+template<typename T>
+static inline T
+fetch_add(T* pointer, T value)
+{
+	static_assert(sizeof(T) == 1 || sizeof(T) == 2 || sizeof(T) == 4
+		|| sizeof(T) == 8, "unsupported atomic variable size");
+	switch (sizeof(T)) {
+	case 1:
+		{
+			uint8_t temp = fetch_add1(reinterpret_cast<uint8_t*>(pointer),
+					*reinterpret_cast<uint8_t*>(&value));
+			return *reinterpret_cast<T*>(&temp);
+		}
+	case 2:
+		{
+			uint16_t temp = fetch_add2(reinterpret_cast<uint16_t*>(pointer),
+					*reinterpret_cast<uint16_t*>(&value));
+			return *reinterpret_cast<T*>(&temp);
+		}
+	case 4:
+		{
+			uint32_t temp = fetch_add4(reinterpret_cast<uint32_t*>(pointer),
+					*reinterpret_cast<uint32_t*>(&value));
+			return *reinterpret_cast<T*>(&temp);
+		}
+	case 8:
+		{
+			uint64_t temp = fetch_add4(reinterpret_cast<uint64_t*>(pointer),
+					*reinterpret_cast<uint64_t*>(&value));
+			return *reinterpret_cast<T*>(&temp);
+		}
+	}
+	// unreachable
+	return T();
+}
+
+
+template<typename T>
+static inline T
+fetch_sub(T* pointer, T value)
+{
+	return fetch_add(pointer, -value, order);
+}
+
+
+static inline uint64_t
+load8(const uint64_t* pointer)
+{
+	uint64_t value;
+	asm volatile("fildq %1;" \
+		"fistpq %0"
+		: "=m" (value)
+		: "m" (*pointer));
+	return value;
+}
+
+
+template<typename T>
+static inline T
+load(const T* pointer)
+{
+	if (sizeof(T) < 8) {
+		return *const_cast<const volatile T*>(pointer);
+	} else {
+		uint64_t temp = load8(reinterpret_cast<const uint64_t*>(pointer));
+		return *reinterpret_cast<T*>(&temp);
+	}
+}
+
+
+static inline void
+store8(uint64_t* pointer, uint64_t value, bool barrier)
+{
+	asm volatile("fildq %1;" \
+		"fistpq %0"
+		: "=m" (*pointer)
+		: "m" (value));
+	if (barrier) {
+		asm volatile("lock; orl $0, (%%esp)" : : : "memory");
+	}
+}
+
+
+template<typename T>
+static inline void
+store(T* pointer, T value, bool barrier)
+{
+	if (sizeof(T) < 8) {
+		if (!barrier) {
+			*const_cast<volatile T*>(pointer) = value;
+		} else {
+			__private::exchange(pointer, value);
+		}
+	} else {
+		store8(reinterpret_cast<uint64_t*>(pointer),
+			*reinterpret_cast<uint64_t*>(&value), barrier);
+	}
+}
+
+}	// namespace __private
+
+enum memory_order {
+	memory_order_relaxed,
+	memory_order_consume,
+	memory_order_acquire,
+	memory_order_release,
+	memory_order_acq_rel,
+	memory_order_seq_cst,
+};
+
+template<typename T>
+class __atomic_integral {
+public:
+	__atomic_integral() { } // = default;
+	__atomic_integral(T value) : fValue(value) { }
+	bool is_lock_free() const { return true; }
+
+	T load(std::memory_order = std::memory_order_seq_cst) const {
+		return __private::load(&fValue);
+	}
+
+	void store(T value, std::memory_order order = std::memory_order_seq_cst) {
+		__private::store(&fValue, value, order == std::memory_order_seq_cst);
+	}
+
+	T operator=(T value) {
+		store(value);
+		return value;
+	}
+
+	operator T() const {
+		return load();
+	}
+
+	T exchange(T desired, std::memory_order = std::memory_order_seq_cst) {
+		return __private::exchange(&fValue, value);
+	}
+
+	bool compare_exchange_strong(T& expected, T desired,
+		std::memory_order = std::memory_order_seq_cst) {
+		return __private::compare_exchange(&fValue, expected, desired);
+	}
+
+	bool compare_exchange_strong(T& expected, T desired, std::memory_order,
+		std::memory_order) {
+		return __private::compare_exchange(&fValue, expected, desired);
+	}
+
+	bool compare_exchange_weak(T& expected, T desired,
+		std::memory_order = std::memory_order_seq_cst) {
+		return __private::compare_exchange(&fValue, expected, desired);
+	}
+
+	bool compare_exchange_weak(T& expected, T desired, std::memory_order,
+		std::memory_order) {
+		return __private::compare_exchange(&fValue, expected, desired);
+	}
+
+	T fetch_add(T value, std::memory_order = std::memory_order_seq_cst) {
+		return __private::fetch_add(&fValue, value);
+	}
+
+	T fetch_sub(T value, std::memory_order = std::memory_order_seq_cst) {
+		return __private::fetch_sub(&fValue, value);
+	}
+
+	T fetch_and(T value, std::memory_order = std::memory_order_seq_cst) {
+		T temp;
+		do {
+			temp = load(fValue, std::memory_order_relaxed);
+		} while (!__private::compare_exchange(&fValue, temp, temp & value));
+		return temp;
+	}
+
+	T fetch_or(T value, std::memory_order = std::memory_order_seq_cst) {
+		T temp;
+		do {
+			temp = load(fValue, std::memory_order_relaxed);
+		} while (!__private::compare_exchange(&fValue, temp, temp | value));
+		return temp;
+	}
+
+	T fetch_xor(T value, std::memory_order = std::memory_order_seq_cst) {
+		T temp;
+		do {
+			temp = load(fValue, std::memory_order_relaxed);
+		} while (!__private::compare_exchange(&fValue, temp, temp ^ value));
+		return temp;
+	}
+
+	T operator++() {
+		return fetch_add(1) + 1;
+	}
+
+	T operator++(int) {
+		return fetch_add(1);
+	}
+
+	T operator--() {
+		return fetch_sub(1) - 1;
+	}
+
+	T operator--(int) {
+		return fetch_sub(1);
+	}
+
+	T operator+=(T value) {
+		return fetch_add(value) + value;
+	}
+
+	T operator-=(T value) {
+		return fetch_sub(value) - value;
+	}
+
+	T operator&=(T value) {
+		return fetch_and(value) & value;
+	}
+
+	T operator|=(T value) {
+		return fetch_or(value) | value;
+	}
+
+	T operator^=(T value) {
+		return fetch_xor(value) ^ value;
+	}
+private:
+	__atomic_integral(const __atomic_integral&) { } // = delete;
+	__atomic_integral& operator=(const __atomic_integral&) { return *this; }
+		// = delete;
+
+	T fValue;
+};
+
+template<typename T>
+class atomic {
+private:
+	atomic() { }
+};
+
+template<typename T>
+class atomic<T*> {
+public:
+	atomic() { } // = default;
+	atomic(T* value) : fValue(value) { }
+	bool is_lock_free() const { return true; }
+
+	T load(std::memory_order = std::memory_order_seq_cst) const {
+		return __private::load(&fValue);
+	}
+
+	void store(T* value, std::memory_order order = std::memory_order_seq_cst) {
+		__private::store(&fValue, value, order == std::memory_order_seq_cst);
+	}
+
+	T operator=(T* value) {
+		store(value);
+		return value;
+	}
+
+	operator T*() const {
+		return load();
+	}
+
+	T* exchange(T* desired, std::memory_order = std::memory_order_seq_cst) {
+		return __private::exchange(&fValue, value);
+	}
+
+	bool compare_exchange_strong(T& expected, T desired,
+		std::memory_order = std::memory_order_seq_cst) {
+		return __private::compare_exchange(&fValue, expected, desired);
+	}
+
+	bool compare_exchange_strong(T& expected, T desired, std::memory_order,
+		std::memory_order) {
+		return __private::compare_exchange(&fValue, expected, desired);
+	}
+
+	bool compare_exchange_weak(T& expected, T desired,
+		std::memory_order = std::memory_order_seq_cst) {
+		return __private::compare_exchange(&fValue, expected, desired);
+	}
+
+	bool compare_exchange_weak(T& expected, T desired, std::memory_order,
+		std::memory_order) {
+		return __private::compare_exchange(&fValue, expected, desired);
+	}
+
+	T* fetch_add(ptrdiff_t value, std::memory_order
+			= std::memory_order_seq_cst) {
+		uintptr_t arg = value * sizeof(T);
+		uintptr_t temp
+			= __private::fetch_add(reinterpret_cast<uintptr_t*>(&fValue), arg);
+		return reinterpret_cast<T*>(temp);
+	}
+
+	T* fetch_sub(T value, std::memory_order = std::memory_order_seq_cst) {
+		uintptr_t arg = value * sizeof(T);
+		uintptr_t temp
+			= __private::fetch_sub(reinterpret_cast<uintptr_t*>(&fValue), arg);
+		return reinterpret_cast<T*>(temp);
+	}
+
+	T* operator++() {
+		return fetch_add(1) + 1;
+	}
+
+	T* operator++(int) {
+		return fetch_add(1);
+	}
+
+	T* operator--() {
+		return fetch_sub(1) - 1;
+	}
+
+	T* operator--(int) {
+		return fetch_sub(1);
+	}
+
+	T* operator+=(T value) {
+		return fetch_add(value) + value;
+	}
+
+	T* operator-=(T value) {
+		return fetch_sub(value) - value;
+	}
+private:
+	atomic(const atomic&) { } // = delete;
+	atomic& operator=(const atomic&) { return *this; } // = delete;
+
+	T*	fValue;
+};
+
+template<>
+class atomic<bool> {
+public:
+	atomic() { } // = default;
+	atomic(bool value) : fValue(value) { }
+	bool is_lock_free() const { return true; }
+
+	bool load(std::memory_order = std::memory_order_seq_cst) const {
+		return __private::load(&fValue);
+	}
+
+	void store(bool value, std::memory_order order
+			= std::memory_order_seq_cst) {
+		__private::store(&fValue, value, order == std::memory_order_seq_cst);
+	}
+
+	bool operator=(bool value) {
+		store(value);
+		return value;
+	}
+
+	operator bool() const {
+		return load();
+	}
+
+	bool exchange(bool desired, std::memory_order = std::memory_order_seq_cst) {
+		return __private::exchange(&fValue, desired);
+	}
+
+	bool compare_exchange_strong(bool& expected, bool desired,
+		std::memory_order = std::memory_order_seq_cst) {
+		return __private::compare_exchange(&fValue, expected, desired);
+	}
+
+	bool compare_exchange_strong(bool& expected, bool desired,
+		std::memory_order, std::memory_order) {
+		return __private::compare_exchange(&fValue, expected, desired);
+	}
+
+	bool compare_exchange_weak(bool& expected, bool desired,
+		std::memory_order = std::memory_order_seq_cst) {
+		return __private::compare_exchange(&fValue, expected, desired);
+	}
+
+	bool compare_exchange_weak(bool& expected, bool desired, std::memory_order,
+		std::memory_order) {
+		return __private::compare_exchange(&fValue, expected, desired);
+	}
+private:
+	atomic(const atomic&) { } // = delete;
+	atomic& operator=(const atomic&) { return *this; } // = delete;
+
+	bool	fValue;
+};
+
+template<>
+class atomic<char> : public __atomic_integral<char> {
+public:
+	atomic() { }
+	atomic(char value) : __atomic_integral<char>(value) { }
+
+	char operator=(char value) {
+		store(value);
+		return value;
+	}
+};
+
+template<>
+class atomic<signed char> : public __atomic_integral<signed char> {
+public:
+	atomic() { }
+	atomic(signed char value) : __atomic_integral<signed char>(value) { }
+
+	signed char operator=(signed char value) {
+		store(value);
+		return value;
+	}
+};
+
+template<>
+class atomic<unsigned char> : public __atomic_integral<unsigned char> {
+public:
+	atomic() { }
+	atomic(unsigned char value) : __atomic_integral<unsigned char>(value) { }
+
+	unsigned char operator=(unsigned char value) {
+		store(value);
+		return value;
+	}
+};
+
+template<>
+class atomic<short> : public __atomic_integral<short> {
+public:
+	atomic() { }
+	atomic(short value) : __atomic_integral<short>(value) { }
+
+	short operator=(short value) {
+		store(value);
+		return value;
+	}
+};
+
+template<>
+class atomic<unsigned short> : public __atomic_integral<unsigned short> {
+public:
+	atomic() { }
+	atomic(unsigned short value) : __atomic_integral<unsigned short>(value) { }
+
+	unsigned short operator=(unsigned short value) {
+		store(value);
+		return value;
+	}
+};
+
+template<>
+class atomic<int> : public __atomic_integral<int> {
+public:
+	atomic() { }
+	atomic(int value) : __atomic_integral<int>(value) { }
+
+	int operator=(int value) {
+		store(value);
+		return value;
+	}
+};
+
+template<>
+class atomic<unsigned> : public __atomic_integral<unsigned> {
+public:
+	atomic() { }
+	atomic(unsigned value) : __atomic_integral<unsigned>(value) { }
+
+	unsigned operator=(unsigned value) {
+		store(value);
+		return value;
+	}
+};
+
+template<>
+class atomic<long> : public __atomic_integral<long> {
+public:
+	atomic() { }
+	atomic(long value) : __atomic_integral<long>(value) { }
+
+	long operator=(long value) {
+		store(value);
+		return value;
+	}
+};
+
+template<>
+class atomic<unsigned long> : public __atomic_integral<unsigned long> {
+public:
+	atomic() { }
+	atomic(unsigned long value) : __atomic_integral<unsigned long>(value) { }
+
+	unsigned long operator=(unsigned long value) {
+		store(value);
+		return value;
+	}
+};
+
+template<>
+class atomic<long long> : public __atomic_integral<long long> {
+public:
+	atomic() { }
+	atomic(long long value) : __atomic_integral<long long>(value) { }
+
+	long long operator=(long long value) {
+		store(value);
+		return value;
+	}
+};
+
+template<>
+class atomic<unsigned long long>
+	: public __atomic_integral<unsigned long long> {
+public:
+	atomic() { }
+	atomic(unsigned long long value)
+		: __atomic_integral<unsigned long long>(value) { }
+
+	unsigned long long operator=(unsigned long long value) {
+		store(value);
+		return value;
+	}
+};
+
+typedef atomic<char> atomic_char;
+typedef atomic<signed char> atomic_schar;
+typedef atomic<unsigned char> atomic_uchar;
+typedef atomic<short> atomic_short;
+typedef atomic<unsigned short> atomic_ushort;
+typedef atomic<int> atomic_int;
+typedef atomic<unsigned int> atomic_uint;
+typedef atomic<long> atomic_long;
+typedef atomic<unsigned long> atomic_ulong;
+typedef atomic<long long> atomic_llong;
+typedef atomic<unsigned long long> atomic_ullong;
+typedef atomic<int_least8_t> atomic_int_least8_t;
+typedef atomic<uint_least8_t> atomic_uint_least8_t;
+typedef atomic<int_least16_t> atomic_int_least16_t;
+typedef atomic<uint_least16_t> atomic_uint_least16_t;
+typedef atomic<int_least32_t> atomic_int_least32_t;
+typedef atomic<uint_least32_t> atomic_uint_least32_t;
+typedef atomic<int_least64_t> atomic_int_least64_t;
+typedef atomic<uint_least64_t> atomic_uint_least64_t;
+typedef atomic<int_fast8_t> atomic_int_fast8_t;
+typedef atomic<uint_fast8_t> atomic_uint_fast8_t;
+typedef atomic<int_fast16_t> atomic_int_fast16_t;
+typedef atomic<uint_fast16_t> atomic_uint_fast16_t;
+typedef atomic<int_fast32_t> atomic_int_fast32_t;
+typedef atomic<uint_fast32_t> atomic_uint_fast32_t;
+typedef atomic<int_fast64_t> atomic_int_fast64_t;
+typedef atomic<uint_fast64_t> atomic_uint_fast64_t;
+typedef atomic<intptr_t> atomic_intptr_t;
+typedef atomic<uintptr_t> atomic_uintptr_t;
+typedef atomic<size_t> atomic_size_t;
+typedef atomic<ptrdiff_t> atomic_ptrdiff_t;
+typedef atomic<intmax_t> atomic_intmax_t;
+typedef atomic<uintmax_t> atomic_uintmax_t;
+
+
+static inline void
+atomic_signal_fence(std::memory_order order)
+{
+	asm volatile("" : : : "memory");
+}
+
+
+static inline void
+atomic_thread_fence(std::memory_order order)
+{
+	if (order == std::memory_order_seq_cst) {
+		asm volatile("lock; orl $0, (%%esp)" : : : "memory");
+	}
+}
+
+
+}	// namespace std
+
+#endif	// _KERNEL_LEGACY_ATOMIC
+
